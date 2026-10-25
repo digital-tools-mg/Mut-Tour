@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mut-Tour">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Mut-Tour gegen Mobbing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Andika:wght@400;700&display=swap">
+<style>
+/* Layout: Bilderbuch-Schulgelände als Karte; Stationen öffnen eine Kartenspalte (Infokarten + Quiz), die sich Schritt für Schritt nach unten aufbaut.
+   Bewusst ein helles Thema: Spielwelt wie ein Bilderbuch, gut lesbar am Beamer. */
+:root{
+  color-scheme: light;
+  --sky:#e6f2fb;      /* Seitengrund */
+  --ink:#1f2b3b;      /* Text */
+  --muted:#56657a;
+  --card:#ffffff;
+  --line:#c8d7e6;
+  --bus:#f2b632;      /* Schulbus-Gelb = Akzent */
+  --bus-deep:#b07d0c;
+  --board:#2f5d50;    /* Tafelgrün */
+  --brick:#c8553d;
+  --ok:#23845a; --ok-bg:#e3f4ea;
+  --bad:#b9372a; --bad-bg:#fbe7e4;
+  --lock:#9aa8b8;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Andika","Verdana",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--sky);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.app{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
+p{margin:0}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--board);outline-offset:3px}
+
+/* Kopfzeile */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{height:54px;width:auto;display:block}
+.cert .certlogo{height:120px;width:auto}
+.brand h1{font-size:1.5rem;font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:2px solid var(--line);border-radius:999px;padding:3px 12px;font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums}
+.chip svg{width:18px;height:18px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:14px;padding:12px 22px;font-family:var(--display);font-weight:800;font-size:1.1rem;background:var(--bus);color:var(--ink);box-shadow:0 4px 0 var(--bus-deep);transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--bus-deep)}
+.btn.ghost{background:var(--card);box-shadow:0 3px 0 var(--line);border:2px solid var(--line)}
+.btn.green{background:var(--board);color:#fff;box-shadow:0 4px 0 #1b3a31}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{background:none;border:none;color:var(--board);font-weight:700;text-decoration:underline;padding:4px}
+
+/* Startbildschirm */
+.start{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:center;background:var(--card);border-radius:24px;padding:28px;border:3px solid var(--ink)}
+.start h2{font-size:clamp(2rem,5vw,3.1rem);font-weight:800}
+.start h2 span{background:linear-gradient(transparent 58%,var(--bus) 58%)}
+.start .lead{font-size:1.1rem;margin-top:12px;max-width:52ch}
+.start form{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.start label{font-weight:700}
+.start input{font:inherit;padding:12px 14px;border:2px solid var(--line);border-radius:12px;max-width:340px;background:#fff;color:var(--ink)}
+.start .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px}
+.how{display:flex;flex-direction:column;gap:10px;margin-top:18px;padding:0;list-style:none}
+.how li{display:flex;gap:10px;align-items:flex-start}
+.how b.n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--board);color:#fff;display:grid;place-items:center;font-family:var(--display);font-size:.95rem}
+details.teacher{background:var(--card);border-radius:16px;border:2px dashed var(--line);padding:12px 18px}
+details.teacher summary{font-weight:700;cursor:pointer}
+details.teacher ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;color:var(--muted)}
+
+/* Karte */
+.mapwrap{position:relative;width:100%;max-width:100%;aspect-ratio:1000/500;border-radius:22px;overflow:hidden;border:3px solid var(--ink);background:#cfe7f7}
+.mapwrap > svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pin .dot svg{display:block}
+.pin{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;padding:0}
+.pin .dot{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--bus);border:3px solid var(--ink);font-family:var(--display);font-weight:800;font-size:1.35rem;color:var(--ink);box-shadow:0 4px 0 rgba(31,43,59,.35)}
+.pin .lbl{background:var(--card);border:2px solid var(--ink);border-radius:999px;padding:1px 10px;font-weight:700;font-size:.85rem;white-space:nowrap}
+.pin .dot{animation:pinIn .5s cubic-bezier(.2,.9,.3,1.4) var(--d,0s) backwards}
+.pin.next .dot{animation:pinIn .5s cubic-bezier(.2,.9,.3,1.4) var(--d,0s) backwards,bob 1.4s calc(var(--d,0s) + .6s) ease-in-out infinite}
+.pin.done .dot{background:var(--ok);color:#fff}
+.pin.locked .dot{background:#e4eaf1;border-color:var(--lock);color:var(--lock);box-shadow:none}
+.pin.locked .lbl{border-color:var(--lock);color:var(--muted)}
+.pin.locked{cursor:not-allowed}
+.pin.final .dot{width:60px;height:60px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.pin.next .dot{animation:none}*{transition:none!important}}
+@media (max-width:640px){.pin .lbl{display:none}.pin .dot{width:38px;height:38px;font-size:1rem}.pin.final .dot{width:44px;height:44px}}
+
+.stations{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.st{display:flex;gap:12px;align-items:center;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px;color:var(--ink);min-width:0}
+.st .ic{flex:none;width:46px;height:46px}
+.st b{display:block;font-family:var(--display);font-size:1.1rem;line-height:1.1}
+.st small{color:var(--muted);font-size:.85rem}
+.st.done{border-color:var(--ok)}
+.st.done small{color:var(--ok);font-weight:700}
+.st.locked{opacity:.55;cursor:not-allowed}
+.st.next{border-color:var(--ink);box-shadow:0 4px 0 var(--bus)}
+.hint{color:var(--muted);text-align:center}
+
+/* Station */
+.stationhead{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}
+.stationhead h2{font-size:1.8rem;font-weight:800}
+.pips{display:flex;gap:6px;margin-left:auto}
+.pips i{width:14px;height:14px;border-radius:50%;background:#dbe4ee;border:2px solid var(--line)}
+.pips i.on{background:var(--bus);border-color:var(--bus-deep)}
+.pips i.ok{background:var(--ok);border-color:var(--ok)}
+.scene{display:flex;gap:18px;align-items:center;background:var(--board);color:#f3f7f2;border-radius:20px;padding:18px 22px;border:6px solid #8a6a43}
+.scene svg{flex:none;width:86px;height:86px}
+.scene .time{font-family:var(--display);font-weight:800;color:var(--bus);font-size:1rem;letter-spacing:.04em}
+.scene p{font-size:1.08rem;max-width:62ch}
+
+.flow{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border-radius:18px;padding:20px 22px;border:2px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.card.new{animation:pop .55s cubic-bezier(.2,.9,.3,1.25)}
+@keyframes pop{from{transform:translateY(24px) scale(.97);opacity:.3}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.card{animation:none}}
+.tag{align-self:flex-start;font-family:var(--display);font-weight:800;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;border-radius:8px;padding:2px 10px}
+.info{border-color:var(--bus);border-width:3px}
+.info .tag{background:var(--bus);color:var(--ink)}
+.quiz .tag{background:var(--board);color:#fff}
+.card h3{font-size:1.4rem;font-weight:800}
+.card ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+.card .big{font-size:1.12rem}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.box{border-radius:14px;padding:14px 16px;background:var(--sky);display:flex;flex-direction:column;gap:6px;min-width:0}
+.box h4{margin:0;font-family:var(--display);font-size:1.15rem}
+.box.warm{background:#fff3d6}
+.box.green{background:var(--ok-bg)}
+.box.red{background:var(--bad-bg)}
+.note{background:#fff3d6;border-radius:12px;padding:10px 14px;font-weight:700}
+.q{font-size:1.2rem;font-weight:700}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{text-align:left;background:var(--sky);border:2px solid var(--line);border-radius:14px;padding:12px 16px;color:var(--ink);display:flex;gap:12px;align-items:flex-start}
+.opt .k{flex:none;width:28px;height:28px;border-radius:8px;background:var(--card);border:2px solid var(--line);display:grid;place-items:center;font-family:var(--display);font-weight:800}
+.opt:hover:not([disabled]){border-color:var(--ink)}
+.opt.right{background:var(--ok-bg);border-color:var(--ok)}
+.opt.right .k{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad);text-decoration:line-through;text-decoration-color:var(--bad)}
+.opt[disabled]{cursor:default}
+.fb{border-radius:12px;padding:12px 16px;font-weight:400}
+.fb b{display:block;font-family:var(--display);font-size:1.1rem}
+.fb.good{background:var(--ok-bg);border-left:6px solid var(--ok)}
+.fb.try{background:var(--bad-bg);border-left:6px solid var(--bad)}
+.sortlist{display:flex;flex-direction:column;gap:10px}
+.sortrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;background:var(--sky);border:2px solid var(--line);border-radius:14px;padding:10px 14px}
+.sortrow span{min-width:0;flex:1 1 220px}
+.sortrow .cats{display:flex;flex-wrap:wrap;gap:6px}
+.cat{border:2px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-weight:700;font-size:.92rem;color:var(--ink)}
+.cat.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+.sortrow.right{border-color:var(--ok);background:var(--ok-bg)}
+.sortrow.right .cat.sel{background:var(--ok);border-color:var(--ok)}
+.sortrow.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.locked-card{border:2px dashed var(--lock);border-radius:18px;padding:16px 20px;display:flex;align-items:center;gap:14px;color:var(--muted);background:rgba(255,255,255,.5)}
+.locked-card svg{flex:none;width:30px;height:30px}
+.solved{display:flex;gap:10px;align-items:center;color:var(--ok);font-weight:700}
+.end{border:3px solid var(--ok);background:var(--card)}
+.end .tag{background:var(--ok);color:#fff}
+.talk{background:var(--sky);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.talk b{font-family:var(--display);font-size:1.05rem}
+
+/* Kreis-Diagramm */
+.circle-wrap{overflow-x:auto}
+.circle-wrap svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto}
+
+/* Hilfe */
+.help{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.help .box b.num{font-family:var(--display);font-size:1.8rem;letter-spacing:.03em;user-select:all;font-variant-numeric:tabular-nums}
+.rules{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.rules li{display:flex;gap:12px;align-items:flex-start;background:var(--sky);border-radius:14px;padding:10px 14px}
+.rules li b.n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--bus);border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-weight:800}
+.rules li div{min-width:0}
+.rules li strong{font-family:var(--display);font-size:1.12rem;display:block;line-height:1.2}
+
+.promise{display:flex;flex-direction:column;gap:8px}
+.promise label{display:flex;gap:12px;align-items:flex-start;background:var(--sky);border:2px solid var(--line);border-radius:14px;padding:10px 14px;cursor:pointer}
+.promise input{width:22px;height:22px;margin-top:3px;accent-color:var(--board);flex:none}
+.promise label:has(input:checked){border-color:var(--board);background:var(--ok-bg)}
+
+/* Urkunde */
+.cert{background:var(--card);border:10px double var(--board);border-radius:10px;padding:32px clamp(18px,4vw,48px);text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+.cert .eyebrow{font-family:var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--brick);font-weight:800}
+.cert h2{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800}
+.cert .who{font-family:var(--display);font-size:clamp(1.6rem,4vw,2.4rem);border-bottom:3px solid var(--bus);padding:0 24px;min-width:min(320px,100%)}
+.cert ul{text-align:left;margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px;max-width:520px}
+.cert .stars{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.cert .stars svg{width:28px;height:28px}
+.cert small{color:var(--muted)}
+
+/* Bewegung */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--sky);padding-block:8px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--sky)}
+.btn{transition:transform .12s,box-shadow .12s}
+.btn:hover:not([disabled]){transform:translateY(-2px)}
+.st{transition:transform .15s}
+.st:not(.locked):hover{transform:translateY(-3px)}
+.opt{transition:transform .12s,border-color .12s}
+.opt:hover:not([disabled]){transform:translateX(4px)}
+.cat{transition:transform .1s}
+.cat:active{transform:scale(.94)}
+.shake{animation:shake .45s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(4px)}}
+.fb.new{animation:fbIn .4s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes fbIn{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
+.chip.pulse{animation:pulse .6s}
+@keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.25);background:#fff3d6}100%{transform:scale(1)}}
+@keyframes pinIn{from{transform:scale(0)}to{transform:scale(1)}}
+svg .clouds{animation:drift 26s linear infinite alternate}
+@keyframes drift{from{transform:translateX(-30px)}to{transform:translateX(60px)}}
+svg .sun{transform-box:fill-box;transform-origin:center;animation:sun 4s ease-in-out infinite}
+@keyframes sun{50%{transform:scale(1.12)}}
+svg .tree{transform-box:fill-box;transform-origin:50% 100%;animation:sway 5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+svg .bus{animation:drive 4.5s cubic-bezier(.15,.6,.25,1) both,rumble .6s 4.5s ease-in-out infinite}
+@keyframes drive{from{transform:translateX(-500px)}to{transform:translateX(0)}}
+@keyframes rumble{50%{transform:translateY(-2px)}}
+svg .ball{transform-box:fill-box;animation:ball 1.2s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes ball{0%,100%{transform:translateY(0)}50%{transform:translateY(-30px)}}
+.scene > svg{animation:wiggle 3.5s ease-in-out infinite}
+@keyframes wiggle{0%,100%{transform:rotate(0)}10%{transform:rotate(-6deg)}20%{transform:rotate(5deg)}30%{transform:rotate(0)}}
+.guide{display:flex;align-items:center;justify-content:center;gap:14px}
+.pet{width:68px;height:86px;flex:none;animation:hop 2.8s ease-in-out infinite}
+@keyframes hop{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(-10px)}90%{transform:translateY(0)}}
+.pet .eyes{transform-box:fill-box;transform-origin:center;animation:blink 4.5s infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.bubble{position:relative;min-width:0;background:var(--card);border:2px solid var(--ink);border-radius:16px;padding:10px 16px;max-width:46ch;animation:fbIn .45s .4s cubic-bezier(.2,.9,.3,1.3) backwards}
+.bubble::before{content:"";position:absolute;left:-10px;top:50%;width:16px;height:16px;background:var(--card);border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translateY(-50%) rotate(45deg)}
+.end{position:relative}
+.end h3{padding-right:96px}
+.badge{position:absolute;right:16px;top:-20px;width:86px;height:86px;border-radius:50%;background:var(--card);border:4px solid var(--ok);padding:12px;transform:rotate(-10deg);box-shadow:0 4px 0 rgba(31,43,59,.2)}
+.badge svg{width:100%;height:100%;display:block}
+.end.new .badge{animation:stamp .6s .25s cubic-bezier(.2,.9,.3,1.5) backwards}
+@keyframes stamp{from{transform:rotate(-40deg) scale(2.4);opacity:0}to{transform:rotate(-10deg) scale(1);opacity:1}}
+.cert{animation:pop .6s cubic-bezier(.2,.9,.3,1.25)}
+.cert .stars span{display:inline-block;animation:starpop .45s cubic-bezier(.2,.9,.3,1.6) backwards;animation-delay:calc(var(--i) * 70ms + .3s)}
+@keyframes starpop{from{transform:scale(0) rotate(-90deg)}to{transform:none}}
+.locked-card svg{animation:jiggle 2.5s ease-in-out infinite}
+@keyframes jiggle{0%,85%,100%{transform:rotate(0)}90%{transform:rotate(-12deg)}95%{transform:rotate(10deg)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+@media (max-width:760px){
+  .start{grid-template-columns:minmax(0,1fr);padding:20px}
+  .start .art{order:-1;max-width:320px;margin:0 auto}
+  .scene{flex-direction:column;align-items:flex-start;padding:16px}
+  .scene svg{width:60px;height:60px}
+  .pips{margin-left:0}
+  .card{padding:16px}
+}
+</style>
+
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+const LOGO="data:image/png;base64,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ffv28fd///dEo1G++93vUltby3vvvcfDDz/M2rVrueyyy/jKV75CVVUVDz30EIsXL+YHP/hBj44rnv194MABfvWrX/Hqq68yYsQIbr/9di699FI/s8/ra7Zlyxb+7u/+jq985SvcfvvthyVkR0eH3L9/P9XV1X5m1onCoM0HXrNmjXznnXdobW31ieqpkp6DpqSkhIqKCqqrq31pVV5eXhyjO+ThJJNJ2buLQl9OrEQiwc6dO/2k+HXr1hEOh6mrq/P7ZXm5s6Wlpf59rFy50u/WeP3111NTU9PDIeW9l+coKpb8vSfc9yUFe0tET4p7ozfr6ur8ZAdvs6uqyooVK/i///f/Ul5ezje+8Q3Kyso4cOAAlmX5XUYURfH7hXnTCEtLS30v9kBKW68fdGdnJ++88w6LFi3ynVA33nijn0VVvO69q8gikQhr167l29/+NnPnzuVv/uZvSCaTlJaW8uKLL3L//ffzhS98gRtuuIHHHnuMl156ie7ubm699Va/lWsymeQv/uIvuOqqq7jrrrt6OK5s22bFihU89dRTlJeXc+WVVzJ79mxisRipVKpHGE/TNFpaWmhra2PGjBkfGf45WTBoHo6zzz5bnH322QN6zZ07d8ojVf542UmZTIYf//jH7N27l3A4THV1NTfffLMfO12wYAEXX3wxuq5TUlKCpmmUlpby7rvv8swzz3DhhRdy1113+XHCw7WuOVLs9GhI4Gkangc6n8/T1NRELpfDsiw+/PBDdu/ezf79+1m3bh3RaJTJkyezZs0af6N2d3dTVlZGeXm57+2Ox+PkcjlisRhSSs4880w/WaK/Y028cJen7Xi5zKtXr6a1tZXJkyfzta99jZkzZ1JaWko6nWbfvn2HbZTu2ZzLly9HSsm8efP8yRtey1hN01i7di2vvfYaO3bsIBaL8fnPf5758+fT2dlJOBxmw4YN2LbNhRdeSFtbmx8q0zSNrVu3Yts2n//855k2bZpfKnngwIE+87VjsRhlZWUkEglisRinNIEHA1u2bDnqrKtLL73Ut308B5I3YiSdTtPZ2em3lfE26KOPPko4HGb69Om89dZbh4SrjidhwztcPBtYSkkikaC9vZ1EIsHevXvp6Ojwpcro0aOpra1l+/btrF27loaGBm644QZqamp8aevdW++mcsVfc7kcra2ttLa29itu7Q0EF0KQTCZp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";
+/* ---------- Icons ---------- */
+const ICON = {
+  star:(f="#f2b632")=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="${f}" stroke="#1f2b3b" stroke-width="1.4" stroke-linejoin="round" d="M12 2.8l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.6l-5.4 2.9 1.1-6.1L3.2 9.2l6.1-.8z"/></svg>`,
+  lock:`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2.5" fill="#9aa8b8"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="#9aa8b8" stroke-width="2.4"/><circle cx="12" cy="15.5" r="1.7" fill="#fff"/></svg>`,
+  check:`<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#23845a"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  bus:`<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="14" width="52" height="34" rx="7" fill="#f2b632" stroke="#1f2b3b" stroke-width="2.5"/><rect x="11" y="19" width="12" height="11" rx="2" fill="#bfe3f5" stroke="#1f2b3b" stroke-width="1.5"/><rect x="26" y="19" width="12" height="11" rx="2" fill="#bfe3f5" stroke="#1f2b3b" stroke-width="1.5"/><rect x="41" y="19" width="12" height="11" rx="2" fill="#bfe3f5" stroke="#1f2b3b" stroke-width="1.5"/><rect x="6" y="36" width="52" height="4" fill="#1f2b3b"/><circle cx="18" cy="49" r="5.5" fill="#1f2b3b"/><circle cx="46" cy="49" r="5.5" fill="#1f2b3b"/><circle cx="18" cy="49" r="2" fill="#cfd6de"/><circle cx="46" cy="49" r="2" fill="#cfd6de"/></svg>`,
+  yard:`<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="44" width="56" height="14" rx="3" fill="#ecd9a8" stroke="#1f2b3b" stroke-width="2"/><rect x="28" y="30" width="7" height="18" fill="#8a6a43" stroke="#1f2b3b" stroke-width="2"/><circle cx="31.5" cy="22" r="15" fill="#5fae5b" stroke="#1f2b3b" stroke-width="2.5"/><circle cx="25" cy="18" r="3" fill="#7cc576"/><circle cx="12" cy="40" r="5" fill="#c8553d" stroke="#1f2b3b" stroke-width="2"/></svg>`,
+  board:`<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="5" y="10" width="54" height="36" rx="3" fill="#2f5d50" stroke="#8a6a43" stroke-width="4"/><path d="M13 22h18M13 30h26M13 38h12" stroke="#f3f7f2" stroke-width="2.5" stroke-linecap="round"/><rect x="20" y="48" width="24" height="4" rx="2" fill="#8a6a43"/><path d="M24 52l-4 8M40 52l4 8" stroke="#8a6a43" stroke-width="3" stroke-linecap="round"/></svg>`,
+  hall:`<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="9" width="38" height="5" rx="2.5" fill="#8a6a43" stroke="#1f2b3b" stroke-width="1.8"/><path d="M14 14v4M32 14v4" stroke="#56657a" stroke-width="2.5" stroke-linecap="round"/><path d="M10 18h8l6 5v31H4V23z" fill="#e8483f" stroke="#1f2b3b" stroke-width="2" stroke-linejoin="round"/><path d="M14 19v35" stroke="#1f2b3b" stroke-width="1.5"/><path d="M28 18h8l6 5v31H22V23z" fill="#4a86f0" stroke="#1f2b3b" stroke-width="2" stroke-linejoin="round"/><path d="M32 19v35" stroke="#1f2b3b" stroke-width="1.5"/><rect x="40" y="26" width="20" height="34" rx="4" fill="#1f2b3b"/><rect x="43" y="30" width="14" height="22" rx="1.5" fill="#bfe3f5"/><path d="M46 36h8M46 40h6M46 44h8" stroke="#c8553d" stroke-width="2" stroke-linecap="round"/></svg>`,
+  aid:`<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="14" width="52" height="40" rx="7" fill="#2c8a4a" stroke="#1f2b3b" stroke-width="2.5"/><path d="M24 14v-4a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v4" fill="none" stroke="#1f2b3b" stroke-width="2.5"/><path d="M28 23h8v8h8v8h-8v8h-8v-8h-8v-8h8z" fill="#ffffff"/></svg>`,
+  hands:`<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 25 C26 20 18 16 18 9.5 C18 5.5 21 3 24.5 3 C27.8 3 30.4 5 32 7.6 C33.6 5 36.2 3 39.5 3 C43 3 46 5.5 46 9.5 C46 16 38 20 32 25 Z" fill="#e8483f" stroke="#1f2b3b" stroke-width="2.2" stroke-linejoin="round"/><path d="M23 8 q2-2.5 4.5-1.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M19 46 H26 M38 46 H45" stroke="#1f2b3b" stroke-width="3" stroke-linecap="round"/><rect x="5" y="40" width="16" height="20" rx="8" fill="#5cb85c" stroke="#1f2b3b" stroke-width="2.2"/><rect x="24" y="38" width="16" height="22" rx="8" fill="#4a86f0" stroke="#1f2b3b" stroke-width="2.2"/><rect x="43" y="40" width="16" height="20" rx="8" fill="#ffd23f" stroke="#1f2b3b" stroke-width="2.2"/><circle cx="13" cy="33" r="6.5" fill="#f3c9a0" stroke="#1f2b3b" stroke-width="2.2"/><circle cx="32" cy="31" r="6.5" fill="#b9825a" stroke="#1f2b3b" stroke-width="2.2"/><circle cx="51" cy="33" r="6.5" fill="#f0d2b0" stroke="#1f2b3b" stroke-width="2.2"/><path d="M10.5 35 q2.5 2 5 0 M29.5 33 q2.5 2 5 0 M48.5 35 q2.5 2 5 0" fill="none" stroke="#1f2b3b" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+};
+
+/* ---------- Inhalte ---------- */
+const STATIONS = [
+{
+  id:"bus", nr:1, place:"Schulbus", title:"Morgens im Schulbus", icon:"bus",
+  time:"7:20 Uhr",
+  scene:"Im Schulbus ist es laut. Ganz hinten sitzt Jonas allein. Ein paar Kinder aus der Gruppe vor ihm drehen sich um, flüstern und lachen über ihn. So geht das schon seit Wochen, fast jeden Morgen.",
+  steps:[
+    {type:"info", title:"Was ist Mobbing?", html:`<p class="big">Mobbing heißt: Ein Kind wird <b>immer wieder</b> und <b>über längere Zeit</b> von anderen geärgert, verletzt oder ausgeschlossen.</p>
+      <ul><li>Es passiert <b>mit Absicht</b>.</li><li>Meistens sind es <b>mehrere gegen einen</b>.</li><li>Das Kind kann sich allein kaum wehren.</li></ul>`},
+    {type:"choice", id:"b1", q:"In welchem Fall handelt es sich um Mobbing?", options:[
+      {t:"Zwei Freunde streiten sich einmal über ein Spiel.", fb:"Ein einzelner Streit unter Freunden ist kein Mobbing."},
+      {t:"Ein Kind wird seit Wochen jeden Tag im Bus ausgelacht.", ok:true},
+      {t:"Jemand rempelt dich auf der Treppe aus Versehen an.", fb:"Aus Versehen heißt: ohne Absicht. Mobbing passiert mit Absicht."}],
+      explain:"Richtig! Es passiert immer wieder, über lange Zeit und mit Absicht. Genau das macht Mobbing aus."},
+    {type:"info", title:"Streit oder Mobbing?", html:`<div class="two">
+      <div class="box green"><h4>Streit</h4><ul><li>Beide sind ungefähr gleich stark.</li><li>Es geht um eine Sache.</li><li>Danach verträgt man sich wieder.</li></ul></div>
+      <div class="box red"><h4>Mobbing</h4><ul><li>Einer ist schwächer oder allein.</li><li>Es hört einfach nicht auf.</li><li>Das Ziel ist, jemanden fertigzumachen.</li></ul></div></div>
+      <p>Streiten gehört manchmal dazu. Mobbing gehört nie dazu.</p>`},
+    {type:"sort", id:"b2", q:"Streit oder Mobbing? Ordne jede Situation zu.", cats:["Streit","Mobbing"], items:[
+      {t:"Lena und Tom zanken sich in der Pause um den Ball. Am nächsten Tag spielen sie wieder zusammen.", c:0},
+      {t:"Eine Gruppe macht Jonas seit Wochen jeden Morgen im Bus nach.", c:1},
+      {t:"Zwei Freundinnen sind sich uneinig, welcher Film besser ist.", c:0},
+      {t:"Niemand darf neben Elif sitzen. Das bestimmt eine Gruppe schon seit den Herbstferien.", c:1}],
+      explain:"Super sortiert! Beim Streit sind beide gleich stark und vertragen sich wieder. Bei Mobbing hört es nicht auf und einer steht allein da."},
+    {type:"info", title:"Alle gegen einen", html:`<p class="big">Oft sucht sich eine Gruppe ein Kind aus. Dieses Kind steht dann allein gegen viele.</p>
+      <p>Darum fühlt es sich hilflos. Es denkt vielleicht sogar, es sei selbst schuld. Das stimmt aber nicht!</p>`},
+    {type:"choice", id:"b3", q:"Was gehört NICHT zu Mobbing?", options:[
+      {t:"Es passiert immer wieder.", fb:"Doch, das gehört dazu: Mobbing hört nicht nach einem Mal auf."},
+      {t:"Es passiert mit Absicht.", fb:"Doch, das gehört dazu: Mobber wollen jemandem wehtun."},
+      {t:"Es passiert nur ein einziges Mal und aus Versehen.", ok:true},
+      {t:"Mehrere sind gegen einen.", fb:"Doch, das gehört dazu: Meist ist eine Gruppe gegen ein Kind."}],
+      explain:"Genau! Was nur einmal und aus Versehen passiert, ist kein Mobbing."}
+  ],
+  talk:"Habt ihr im Bus oder auf dem Schulweg schon einmal beobachtet, dass jemand immer wieder geärgert wird? (Bitte keine Namen nennen!)"
+},
+{
+  id:"hof", nr:2, place:"Schulhof", title:"In der großen Pause", icon:"yard",
+  time:"9:30 Uhr",
+  scene:"Auf dem Schulhof spielen viele Kinder Fangen. Elif steht am Zaun und fragt, ob sie mitspielen darf. Einer ruft: „Du nicht, Brillenschlange!“ Alle lachen.",
+  steps:[
+    {type:"info", title:"Mobbing hat viele Gesichter", html:`<div class="two">
+      <div class="box warm"><h4>Mit dem Körper</h4><p>schlagen, treten, schubsen, Sachen wegnehmen, verstecken oder kaputt machen</p></div>
+      <div class="box warm"><h4>Mit Worten</h4><p>beleidigen, auslachen, gemeine Spitznamen, Angst machen, lästern hinter dem Rücken</p></div>
+      <div class="box warm"><h4>Durch Ausgrenzen</h4><p>nicht mitspielen lassen, ignorieren, allein lassen, „Du gehörst nicht dazu!“</p></div></div>`},
+    {type:"sort", id:"h1", q:"Welche Art von Mobbing ist das?", cats:["Körper","Worte","Ausgrenzen"], items:[
+      {t:"Ben wird jeden Tag an der Treppe geschubst.", c:0},
+      {t:"Über Elif werden gemeine Sachen erzählt, wenn sie nicht dabei ist.", c:1},
+      {t:"Niemand darf Jonas in die Fußballmannschaft wählen.", c:2},
+      {t:"Mia wird auf dem Schulhof immer wieder ein Bein gestellt.", c:0},
+      {t:"Leon bekommt einen gemeinen Spitznamen.", c:1},
+      {t:"Wenn Sara kommt, gehen alle weg.", c:2}],
+      explain:"Klasse! Mobbing kann wehtun, auch wenn niemand geschlagen wird. Worte und Ausgrenzen verletzen genauso."},
+    {type:"info", title:"Warum gerade ich?", html:`<p class="big">Mobber suchen nach etwas, worüber sie sich lustig machen können:</p>
+      <ul><li>das Aussehen, die Kleidung oder die Brille</li><li>die Hautfarbe oder die Herkunft</li><li>der Körper, zum Beispiel Größe oder Gewicht</li><li>wenn jemand still ist oder neu in der Klasse</li></ul>
+      <p class="note">Wichtig: Das Opfer ist NIE schuld! Niemand muss sich ändern, damit er nicht gemobbt wird.</p>`},
+    {type:"choice", id:"h2", q:"Elif wird ausgelacht, weil sie eine Brille trägt. Wer ist schuld?", options:[
+      {t:"Elif, weil sie eine Brille trägt.", fb:"Nein! Eine Brille ist ganz normal. Niemand ist schuld, weil er so ist, wie er ist."},
+      {t:"Die Kinder, die sie auslachen.", ok:true},
+      {t:"Niemand, das ist doch nur Spaß.", fb:"Für Elif ist es kein Spaß. Sie ist traurig und allein."}],
+      explain:"Richtig! Schuld haben immer die, die mobben. Nie das Opfer."},
+    {type:"info", title:"Nur Spaß?", html:`<p class="big">Mobber sagen oft: „Das war doch nur Spaß!“</p>
+      <p>Spaß ist es nur, wenn <b>alle</b> lachen können. Wenn einer traurig ist, Angst hat oder sich schämt, ist es kein Spaß mehr.</p>`},
+    {type:"choice", id:"h3", fixed:true, q:"Stimmt das? „Wenn alle anderen lachen, ist es Spaß, auch wenn einer dabei traurig ist.“", options:[
+      {t:"Stimmt", fb:"Nein. Wenn einer leidet, ist es kein Spaß, egal wie viele lachen."},
+      {t:"Stimmt nicht", ok:true}],
+      explain:"Genau! Spaß ist nur, wenn alle Spaß haben."}
+  ],
+  talk:"Warum sagen Mobber wohl so oft „War doch nur Spaß“? Woran merkt ihr, dass aus Spaß Ernst geworden ist?"
+},
+{
+  id:"klasse", nr:3, place:"Klassenzimmer", title:"Wer macht mit?", icon:"board",
+  time:"10:45 Uhr",
+  scene:"Im Unterricht flüstert einer aus der Gruppe etwas über Jonas. Zwei andere lachen laut. Sara schaut weg. Mia sieht, wie traurig Jonas ist, und überlegt, was sie tun kann.",
+  steps:[
+    {type:"info", title:"Der Mobbing-Kreis", html:`<p>Bei Mobbing sind fast immer viele beteiligt. Jeder hat eine Rolle:</p>
+      <div class="circle-wrap">${circleSVG()}</div>
+      <ul><li><b>Anführer</b> fangen an und bestimmen, was passiert.</li><li><b>Mitmacher</b> lachen mit oder machen mit.</li><li><b>Zuschauer</b> sehen alles, tun aber nichts.</li><li><b>Helfer</b> halten zum Opfer und holen Hilfe.</li></ul>`},
+    {type:"sort", id:"k1", q:"Welche Rolle hat jedes Kind?", cats:["Anführer","Mitmacher","Zuschauer","Helfer"], items:[
+      {t:"Einer denkt sich den gemeinen Spruch über Jonas aus.", c:0},
+      {t:"Zwei andere lachen laut mit.", c:1},
+      {t:"Sara sieht alles, sagt aber nichts.", c:2},
+      {t:"Mia setzt sich in der Pause zu Jonas.", c:3}],
+      explain:"Gut erkannt! Jeder in der Klasse hat eine Rolle, auch wer nur zuschaut."},
+    {type:"info", title:"Warum mobbt jemand?", html:`<ul><li>Manche wollen <b>cool wirken</b> oder bestimmen.</li><li>Manche fühlen sich <b>selbst schwach</b> und wollen so Freunde sammeln.</li><li>Manche machen mit, weil sie <b>Angst</b> haben, sonst selbst dran zu sein.</li></ul>
+      <p class="note">Keiner dieser Gründe macht Mobbing in Ordnung!</p>`},
+    {type:"choice", id:"k2", q:"Warum ist es so wichtig, was die Zuschauer tun?", options:[
+      {t:"Ohne Publikum macht Mobben keinen Spaß mehr. Zuschauer können es stoppen.", ok:true},
+      {t:"Zuschauer sind egal, sie machen ja nichts.", fb:"Gerade weil sie nichts tun, kann der Mobber weitermachen."},
+      {t:"Zuschauer sollten am besten schnell weggehen.", fb:"Weggehen hilft dem Opfer nicht. Es bleibt allein."}],
+      explain:"Richtig! Zuschauer sind die größte Gruppe. Wenn sie nicht mitlachen und Hilfe holen, hört Mobbing oft auf."},
+    {type:"info", title:"Wegschauen hilft nicht", html:`<p class="big">Wer schweigt, lässt den Mobber weitermachen.</p>
+      <p>Du musst kein Held sein und dich nicht in Gefahr bringen. Aber jeder kann etwas tun: nicht mitlachen, zum Opfer halten, Hilfe holen. Wie das geht, erfährst du am Ende der Tour.</p>`},
+    {type:"choice", id:"k3", q:"Sara will nicht länger nur zuschauen. Was kann sie tun, ohne sich in Gefahr zu bringen?", options:[
+      {t:"Den Anführer in der Pause schubsen.", fb:"Gewalt macht alles schlimmer und bringt Sara selbst in Schwierigkeiten."},
+      {t:"Nicht mitlachen und Jonas fragen, ob alles okay ist.", ok:true},
+      {t:"So tun, als hätte sie nichts gesehen.", fb:"Dann bleibt Sara Zuschauerin und Jonas bleibt allein."}],
+      explain:"Super! So wird Sara von der Zuschauerin zur Helferin."}
+  ],
+  talk:"Welche Rolle ist am schwersten zu verlassen? Was bräuchtet ihr, um Helfer zu sein?"
+},
+{
+  id:"sani", nr:4, place:"Sanitätsraum", title:"Schon wieder Bauchweh", icon:"aid",
+  time:"12:15 Uhr",
+  scene:"Mitten im Unterricht sitzt Jonas im Sanitätsraum. Er hat schon wieder Bauchweh, wie so oft in letzter Zeit. Die Schulsanitäterin Lea fragt ihn freundlich: „Ist sonst noch etwas los?“",
+  steps:[
+    {type:"info", title:"Wie fühlt sich Mobbing an?", html:`<p>Mobbing tut sehr weh, auch wenn man es von außen nicht sieht. Betroffene Kinder …</p>
+      <ul><li>haben Angst und wollen nicht mehr zur Schule</li><li>bekommen Bauchweh oder Kopfschmerzen</li><li>wollen mit niemandem mehr reden</li><li>zweifeln an sich selbst</li><li>werden schlechter in der Schule</li></ul>
+      <p>Manche Menschen erinnern sich noch als Erwachsene daran. Darum ist es so wichtig, früh etwas zu tun.</p>`},
+    {type:"choice", id:"f2", q:"Jonas hat seit Wochen jeden Morgen Bauchweh und will nicht zur Schule. Was könnte dahinterstecken?", options:[
+      {t:"Er ist einfach faul.", fb:"Bauchweh jeden Morgen kann ein Zeichen sein, dass etwas Schlimmes passiert."},
+      {t:"Vielleicht wird er in der Schule gemobbt.", ok:true},
+      {t:"Das ist bestimmt nichts Wichtiges.", fb:"Doch, solche Zeichen sollte man ernst nehmen."}],
+      explain:"Genau! Es kann viele Gründe geben. Aber Mobbing ist einer davon. Darum: nachfragen und zuhören."},
+    {type:"info", title:"Mobbing kann krank machen", html:`<p class="big">Wer gemobbt wird, steht unter Dauerstress. Das zeigt sich oft an diesen Warnzeichen:</p>
+      <div class="two">
+        <div class="box warm"><h4>Am Körper</h4><ul><li>Bauch- oder Kopfschmerzen</li><li>Übelkeit</li><li>schlecht schlafen, Albträume</li><li>kein Appetit</li><li>oft krank</li></ul></div>
+        <div class="box warm"><h4>In den Gefühlen</h4><ul><li>Angst und Nervosität</li><li>Traurigkeit</li><li>Scham</li><li>Wut oder schnell gereizt</li><li>Zweifel an sich selbst</li></ul></div>
+        <div class="box warm"><h4>Im Verhalten</h4><ul><li>zieht sich zurück</li><li>will nicht zur Schule oder in den Bus</li><li>Noten werden schlechter</li><li>Sachen gehen „verloren“ oder kaputt</li><li>meidet die Pause</li></ul></div>
+      </div>`},
+    {type:"sort", id:"s1", q:"Wo zeigt sich das Warnzeichen? Ordne zu.", cats:["Körper","Gefühle","Verhalten"], items:[
+      {t:"Ella hat jeden Morgen Kopfschmerzen.", c:0},
+      {t:"Tim kann nachts nicht einschlafen.", c:0},
+      {t:"Mila hat ständig Angst vor der nächsten Pause.", c:1},
+      {t:"Paul schämt sich und fühlt sich wertlos.", c:1},
+      {t:"Noah trifft sich nicht mehr mit seinen Freunden.", c:2},
+      {t:"Lina fährt nicht mehr mit dem Bus, sondern läuft einen Umweg.", c:2},
+      {t:"Jan isst mittags nichts mehr.", c:2},
+      {t:"Sofia ist plötzlich oft wütend und gereizt.", c:1}],
+      explain:"Prima! Mobbing zeigt sich am Körper, in den Gefühlen und im Verhalten. Wer solche Zeichen bemerkt, sollte nachfragen."},
+    {type:"info", title:"Warnzeichen ernst nehmen", html:`<div class="two">
+      <div class="box green"><h4>Wenn du es bei dir merkst</h4><p>Sprich mit einer Vertrauensperson. Du musst das nicht allein aushalten.</p></div>
+      <div class="box green"><h4>Wenn du es bei anderen merkst</h4><p>Frag nach: „Ist alles okay bei dir?“ Hör zu, lach nicht und erzähl es nicht herum.</p></div></div>
+      <p class="note">Warnzeichen können auch andere Gründe haben. Trotzdem gilt: Nachfragen ist immer besser als Wegschauen.</p>`},
+    {type:"choice", id:"s2", q:"Welche Beobachtung kann ein Hinweis darauf sein, dass ein Kind gemobbt wird?", options:[
+      {t:"Es freut sich auf den Schulausflug und erzählt viel davon.", fb:"Das klingt eher nach einem Kind, dem es gut geht."},
+      {t:"Es hat oft Bauchweh, ist still geworden und will nicht mehr zur Schule.", ok:true},
+      {t:"Es hat einmal eine schlechte Note geschrieben.", fb:"Eine schlechte Note allein ist kein Warnzeichen. Achte auf mehrere Zeichen über längere Zeit."}],
+      explain:"Richtig! Mehrere Warnzeichen über längere Zeit sind ein Grund, nachzufragen und Hilfe zu holen."}
+  ],
+  talk:"Woran könnt ihr erkennen, dass es jemandem in der Klasse nicht gut geht? Was könnt ihr dann tun?"
+},
+{
+  id:"flur", nr:5, place:"Schulflur", title:"Nach Schulschluss im Flur", icon:"hall",
+  time:"13:05 Uhr",
+  scene:"An der Garderobe holen alle ihre Jacken. Plötzlich vibrieren viele Handys. Im Klassenchat ist ein peinliches Foto von Jonas aufgetaucht. Darunter stehen schon viele lachende Smileys.",
+  steps:[
+    {type:"info", title:"Cybermobbing", html:`<p class="big">Cybermobbing ist Mobbing im Internet: in Chats, in sozialen Medien oder bei Online-Spielen.</p>
+      <ul><li>peinliche Fotos oder Videos verschicken</li><li>gemeine Kommentare schreiben</li><li>jemanden aus der Gruppe werfen</li></ul>
+      <p class="note">Besonders schlimm: Es hört nach der Schule nicht auf, sehr viele sehen es, und das Internet vergisst nicht.</p>`},
+    {type:"choice", id:"f1", q:"Das peinliche Foto von Jonas ist im Klassenchat. Was ist richtig?", options:[
+      {t:"Weiterleiten, ist ja lustig.", fb:"Wer weiterleitet, macht beim Mobbing mit. Und das Teilen fremder Fotos kann sogar verboten sein."},
+      {t:"Einen lachenden Smiley dazuschicken.", fb:"Auch ein Smiley ist Mitlachen. Jonas sieht jede Reaktion."},
+      {t:"Nicht weiterleiten, einen Screenshot machen und ihn einem Erwachsenen zeigen.", ok:true}],
+      explain:"Richtig! Der Screenshot ist ein Beweis. Erwachsene können dafür sorgen, dass das Foto gelöscht wird."},
+    {type:"info", title:"Jeder hat Gefühle!", html:`<p class="big">Hinter jedem Namen im Chat steckt ein Mensch mit Gefühlen.</p>
+      <p>Worte können genauso wehtun wie Schläge. Bevor du etwas schreibst, frag dich: Würde ich das der Person auch ins Gesicht sagen? Wie würde ich mich fühlen, wenn das jemand über mich schreibt?</p>`},
+    {type:"choice", id:"f3", fixed:true, q:"Stimmt das? „Gemeine Worte können genauso wehtun wie Schläge.“", options:[
+      {t:"Stimmt", ok:true},
+      {t:"Stimmt nicht", fb:"Doch, leider. Gemeine Worte können lange wehtun, manchmal länger als ein blauer Fleck."}],
+      explain:"Richtig! Auch Worte können tief verletzen."}
+  ],
+  talk:"Welche Regeln sollte euer Klassenchat haben, damit sich alle wohlfühlen?"
+}];
+
+
+const FINALE = {
+  id:"finale", nr:6, place:"Aula", title:"Gemeinsam stark: Was hilft?", icon:"hands",
+  time:"Am nächsten Tag",
+  scene:"Mia, Sara und ein paar andere haben genug. Sie wollen Jonas und Elif helfen. In der Aula überlegen sie gemeinsam: Was können wir tun? Hilf ihnen, die beste Lösung zu finden!",
+  steps:[
+    {type:"info", title:"Die 5 Mut-Regeln", html:`<p>Das kannst du tun, wenn du Mobbing siehst:</p>
+      <ol class="rules">
+        <li><b class="n">1</b><div><strong>Hinschauen statt wegschauen</strong>Nimm ernst, was du siehst.</div></li>
+        <li><b class="n">2</b><div><strong>Nicht mitmachen</strong>Nicht mitlachen, nichts weiterleiten, keine Smileys.</div></li>
+        <li><b class="n">3</b><div><strong>Zum Opfer halten</strong>Setz dich dazu, frag: „Alles okay?“, lade zum Mitspielen ein.</div></li>
+        <li><b class="n">4</b><div><strong>Gemeinsam „Stopp!“ sagen</strong>Nur wenn du dich sicher fühlst, am besten zusammen mit anderen.</div></li>
+        <li><b class="n">5</b><div><strong>Hilfe holen</strong>Sag es einer Lehrkraft, deinen Eltern, der Vertrauenslehrkraft oder der Schulsozialarbeit.</div></li>
+      </ol>`},
+    {type:"info", title:"Hilfe holen ist kein Petzen!", html:`<div class="two">
+      <div class="box red"><h4>Petzen</h4><p>Ich will jemanden <b>in</b> Schwierigkeiten bringen.</p></div>
+      <div class="box green"><h4>Hilfe holen</h4><p>Ich will jemanden <b>aus</b> Schwierigkeiten holen.</p></div></div>
+      <p>Wenn du einer Lehrkraft von Mobbing erzählst, hilfst du. Du darfst auch darum bitten, dass dein Name nicht genannt wird.</p>`},
+    {type:"choice", id:"z1", fixed:true, q:"Mia will ihrer Klassenlehrerin Frau Schulz erzählen, dass Jonas seit Wochen gemobbt wird. Ist das Petzen?", options:[
+      {t:"Ja, sie verrät die anderen.", fb:"Mia will nicht, dass jemand Ärger bekommt. Sie will, dass es Jonas besser geht."},
+      {t:"Nein, sie holt Hilfe für Jonas.", ok:true}],
+      explain:"Richtig! Mia holt Jonas aus Schwierigkeiten. Das ist mutig und richtig."},
+    {type:"choice", id:"z2", q:"Mission Schulbus: Auf dem Heimweg wird Jonas im Bus wieder ausgelacht. Was ist die beste Idee?", options:[
+      {t:"Laut zurückbeleidigen.", fb:"Dann gibt es nur noch mehr Streit. Beleidigungen machen es schlimmer."},
+      {t:"Sich neben Jonas setzen und danach der Klassenlehrerin Bescheid sagen.", ok:true},
+      {t:"Kopfhörer rein und nicht hinhören.", fb:"Dann bleibt Jonas allein. Wegschauen hilft nicht."}],
+      explain:"Super! Mia und Sara setzen sich zu Jonas. Plötzlich ist er nicht mehr allein, und den anderen wird das Lachen langweilig. Am nächsten Morgen erzählen sie Frau Schulz davon."},
+    {type:"choice", id:"z3", q:"Mission Schulhof: Elif darf wieder nicht mitspielen. Was tust du?", options:[
+      {t:"Ich lade Elif ein: „Komm, spiel bei uns mit!“", ok:true},
+      {t:"Ich mische mich nicht ein, das ist nicht mein Problem.", fb:"Doch, es betrifft alle. Ausgrenzen funktioniert nur, wenn alle mitmachen."},
+      {t:"Ich schubse die anderen weg.", fb:"Gewalt ist keine Lösung und bringt dich selbst in Schwierigkeiten."}],
+      explain:"Klasse! Ein paar Kinder spielen jetzt mit Elif. Die Gruppe merkt: Nicht alle machen mehr mit."},
+    {type:"choice", id:"z4", q:"Mission Klassenchat: Das Foto von Jonas ist noch im Chat. Was ist am besten?", options:[
+      {t:"Das Handy weglegen und es einfach vergessen.", fb:"Das Foto bleibt im Chat und Jonas leidet weiter."},
+      {t:"In den Chat schreiben: „Hört auf, das ist gemein!“, einen Screenshot machen und mit Eltern oder Lehrkraft sprechen.", ok:true},
+      {t:"Ein peinliches Foto vom Anführer posten.", fb:"Rache macht dich selbst zum Mobber."}],
+      explain:"Genau! Frau Schulz spricht mit der Klasse und den Eltern. Das Foto wird gelöscht. Die Klasse beschließt Regeln für den Chat."},
+    {type:"sort", id:"z5", q:"Hilft das gegen Mobbing oder nicht?", cats:["Hilft","Hilft nicht"], items:[
+      {t:"Mitlachen", c:1},
+      {t:"Einer Lehrkraft Bescheid sagen", c:0},
+      {t:"Gemeine Nachrichten weiterleiten", c:1},
+      {t:"Sich in der Pause zum Opfer setzen", c:0},
+      {t:"Wegschauen", c:1},
+      {t:"Gemeinsam „Stopp!“ sagen", c:0},
+      {t:"Zurückschlagen", c:1}],
+      explain:"Perfekt! Du weißt jetzt, was wirklich hilft."},
+    {type:"info", title:"Wenn du selbst gemobbt wirst", html:`<ul>
+        <li><b>Du bist nicht schuld.</b> Niemand hat es verdient, gemobbt zu werden.</li>
+        <li><b>Sprich darüber</b> mit jemandem, dem du vertraust: Eltern, Geschwister, Lehrkraft, Schulsozialarbeit, Freunde.</li>
+        <li><b>Schreib auf, was passiert:</b> wann, wo, wer, was. Bei Cybermobbing: Screenshots machen.</li>
+        <li><b>Bleib in der Nähe von Freunden</b> und Erwachsenen.</li>
+        <li><b>Antworte nicht</b> auf gemeine Nachrichten. Blockiere und melde die Absender.</li></ul>`},
+    {type:"info", title:"Deine Vertrauenspersonen", html:`<p class="big">Wende dich an Vertrauenspersonen, wenn du Probleme hast. Eine Vertrauensperson hört dir zu und hilft dir.</p>
+      <div class="two">
+        <div class="box"><h4>Zu Hause</h4><p>Eltern, Geschwister, Großeltern</p></div>
+        <div class="box"><h4>In der Schule</h4><p>Lehrerinnen und Lehrer, Vertrauenslehrkraft, Schulsozialarbeit</p></div>
+        <div class="box"><h4>Im Alltag</h4><p>Freundinnen und Freunde, Trainer im Verein, andere Erwachsene, denen du vertraust</p></div>
+      </div>
+      <p class="note">Überleg dir jetzt: Wer sind deine drei Vertrauenspersonen?</p>
+      <p><b>Auch hier bekommst du Hilfe:</b></p>
+      <div class="help">
+        <div class="box warm"><h4>Nummer gegen Kummer</h4><b class="num">116 111</b><p>Kostenlos und anonym, Montag bis Samstag von 14 bis 20 Uhr. Auch online: <a href="https://www.nummergegenkummer.de" target="_blank" rel="noopener">nummergegenkummer.de</a></p></div>
+        <div class="box"><h4>juuuport</h4><p><a href="https://www.juuuport.de" target="_blank" rel="noopener">juuuport.de</a>: Jugendliche helfen Jugendlichen bei Problemen im Internet, zum Beispiel bei Cybermobbing.</p></div>
+      </div>`},
+    {type:"choice", id:"z6", q:"Wer kann eine Vertrauensperson sein?", options:[
+      {t:"Nur die Schulleitung.", fb:"Die Schulleitung kann helfen, aber es gibt noch viele andere Vertrauenspersonen."},
+      {t:"Niemand. Probleme muss man allein lösen.", fb:"Nein! Niemand muss Probleme allein lösen. Hilfe holen ist mutig."},
+      {t:"Eltern, Geschwister, Lehrkräfte, Schulsozialarbeiter, Freunde und andere Menschen, denen ich vertraue.", ok:true}],
+      explain:"Genau! Es gibt viele Menschen, die dir zuhören und helfen. Such dir jemanden aus, dem du vertraust."},
+    {type:"promise", id:"p", title:"Unser Klassenversprechen", items:[
+      "Ich behandle andere so, wie ich selbst behandelt werden möchte.",
+      "Ich schaue nicht weg, wenn jemand gemobbt wird, sondern helfe oder hole Hilfe.",
+      "Ich mache bei Mobbing nicht mit, weder in der Schule noch im Internet."]}
+  ],
+  talk:"Was nehmt ihr euch als Klasse ab morgen ganz konkret vor?"
+};
+const ALL = [...STATIONS, FINALE];
+const QIDS = ALL.flatMap(s=>s.steps.filter(x=>x.type==="choice"||x.type==="sort").map(x=>x.id));
+
+function circleSVG(){
+  const node=(x,y,r,fill,label,tc="#1f2b3b")=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="#1f2b3b" stroke-width="2.5"/><text x="${x}" y="${y+5}" text-anchor="middle" font-family="Baloo 2, Trebuchet MS, sans-serif" font-weight="800" font-size="15" fill="${tc}">${label}</text>`;
+  const L=(x,y)=>`<line x1="260" y1="130" x2="${x}" y2="${y}" stroke="#9aa8b8" stroke-width="3" stroke-dasharray="6 5"/>`;
+  return `<svg viewBox="0 0 520 260" role="img" aria-label="Mobbing-Kreis: in der Mitte das Opfer, darum Anführer, Mitmacher, Zuschauer und Helfer">
+    <rect x="0" y="0" width="520" height="260" fill="#ffffff"/>
+    ${L(90,55)}${L(430,55)}${L(90,205)}${L(430,205)}
+    ${node(90,55,46,"#f6c9bf","Anführer")}${node(430,55,46,"#fbe1a6","Mitmacher")}
+    ${node(90,205,46,"#dde5ee","Zuschauer")}${node(430,205,46,"#bfe5cf","Helfer")}
+    ${node(260,130,48,"#ffffff","Opfer")}
+  </svg>`;
+}
+
+/* ---------- Spielstand ---------- */
+const KEY="mut-tour-v1";
+let S = load() || fresh();
+function fresh(){return {name:"",started:false,prog:{},first:{},done:{},promises:[],view:"start",cur:null}}
+function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const stars=()=>Object.values(S.first).filter(v=>v===true).length;
+const unlocked=(st)=>{ if(st.id==="finale") return STATIONS.every(s=>S.done[s.id]); const i=STATIONS.indexOf(st); return i===0||!!S.done[STATIONS[i-1].id]; };
+const nextStation=()=>ALL.find(s=>!S.done[s.id]&&unlocked(s));
+
+/* temporäre Antwortzustände pro Frage (nicht gespeichert) */
+let tmp={};
+
+const app=document.getElementById("app");
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function header(){
+  const done=STATIONS.filter(s=>S.done[s.id]).length;
+  return `<div class="top">
+    <div class="brand"><img class="logo" src="${LOGO}" alt="Logo MPS St. Blasius Dornburg"><h1>Mut-Tour gegen Mobbing</h1></div>
+    <div class="chips">
+      ${S.name?`<span class="chip">${esc(S.name)}</span>`:""}
+      <span class="chip" title="Stationen geschafft">Stationen ${done}/${STATIONS.length}</span>
+      <span class="chip" id="starchip" title="Mut-Sterne: beim ersten Versuch richtig">${ICON.star()} ${stars()}/${QIDS.length}</span>
+    </div></div>`;
+}
+
+/* ---------- Ansichten ---------- */
+function render(){
+  if(S.view==="map") return renderMap();
+  if(S.view==="station") return renderStation();
+  if(S.view==="cert") return renderCert();
+  renderStart();
+}
+
+function renderStart(){
+  const resume=S.started;
+  app.innerHTML = `${header()}
+  <section class="start">
+    <div>
+      <h2>Gemeinsam gegen <span>Mobbing</span></h2>
+      <p class="lead">Begleite Jonas, Elif und ihre Klasse durch einen Schultag. An fünf Orten der Schule erfährst du, was Mobbing ist und wie es sich anfühlt. Am Ende findest du heraus, was wirklich hilft.</p>
+      <ul class="how">
+        <li><b class="n">1</b><span>Lies die gelben <b>Infokarten</b>.</span></li>
+        <li><b class="n">2</b><span>Beantworte die <b>Quizfragen</b>. Jede richtige Antwort schaltet die nächste Karte frei.</span></li>
+        <li><b class="n">3</b><span>Schaffe alle fünf Stationen, dann öffnet sich die <b>Aula</b> mit den Lösungen.</span></li>
+      </ul>
+      <form id="startform">
+        <label for="name">Dein Name oder euer Teamname</label>
+        <input id="name" maxlength="40" autocomplete="off" placeholder="z. B. Team Tafelgrün" value="${esc(S.name)}">
+        <div class="row">
+          <button class="btn" type="submit">${resume?"Weiterspielen":"Los geht’s!"}</button>
+          ${resume?`<button class="link" type="button" id="reset">Ganz von vorne beginnen</button>`:""}
+        </div>
+      </form>
+    </div>
+    <div class="art">${mapSVG(true)}</div>
+  </section>
+  <details class="teacher"><summary>Hinweise für Lehrkräfte</summary>
+    <ul>
+      <li>Dauer: etwa 20 bis 30 Minuten. Geeignet für Einzel- oder Partnerarbeit am Tablet/PC oder gemeinsam am Whiteboard.</li>
+      <li>Am Ende jeder Station steht eine Frage „Sprecht darüber“ als Impuls für ein kurzes Klassengespräch.</li>
+      <li>Falsche Antworten werden erklärt und können wiederholt werden. Mut-Sterne gibt es nur für Antworten, die beim ersten Versuch stimmen.</li>
+      <li>Der Spielstand wird nur auf diesem Gerät im Browser gespeichert.</li>
+      <li>Das Spiel ersetzt kein Gespräch. Wichtig ist, auf Kinder zu achten, die selbst betroffen sein könnten, und ihnen Gesprächsmöglichkeiten anzubieten.</li>
+    </ul>
+  </details>`;
+  document.getElementById("startform").addEventListener("submit",e=>{
+    e.preventDefault(); S.name=document.getElementById("name").value.trim(); S.started=true; S.view="map"; save(); render(); window.scrollTo(0,0);
+  });
+  const r=document.getElementById("reset");
+  if(r) r.addEventListener("click",()=>{
+    if(r.dataset.sure){ S=fresh(); tmp={}; save(); render(); }
+    else { r.dataset.sure="1"; r.textContent="Wirklich? Alles löschen und neu starten"; }
+  });
+}
+
+function mapSVG(deco){
+  const tree=(x,y,r,cls="")=>`<g class="${cls}"><rect x="${x-5}" y="${y}" width="10" height="${r*1.6}" fill="#8a6a43" stroke="#1f2b3b" stroke-width="2"/><circle cx="${x}" cy="${y-r*0.3}" r="${r}" fill="#5fae5b" stroke="#1f2b3b" stroke-width="3"/><circle cx="${x-r*0.3}" cy="${y-r*0.6}" r="${r*0.2}" fill="#7cc576"/></g>`;
+  return `<svg viewBox="0 140 1000 500" ${deco?'role="img" aria-label="Bild: Schule mit vier Häusern, Schulhof und Schulbus" style="width:100%;height:auto;border-radius:18px;border:3px solid #1f2b3b;display:block"':'aria-hidden="true"'}>
+    <rect y="140" width="1000" height="500" fill="#cfe7f7"/>
+    <g fill="#ffffff" class="clouds"><ellipse cx="170" cy="190" rx="62" ry="20"/><ellipse cx="214" cy="178" rx="40" ry="20"/><ellipse cx="560" cy="200" rx="50" ry="16"/><ellipse cx="830" cy="176" rx="52" ry="17"/></g>
+    <circle class="sun" cx="58" cy="186" r="24" fill="#f2b632"/>
+    <!-- Hintergrund: Wiese, Schulhof -->
+    <rect y="250" width="1000" height="60" fill="#a8d08d"/>
+    <rect y="300" width="1000" height="200" fill="#ecd9a8"/>
+    <path d="M0 300 H1000" stroke="#c9b27a" stroke-width="3"/>
+    <g stroke="#9aa8b8" stroke-width="2">${Array.from({length:41},(_,i)=>`<line x1="${i*25}" y1="278" x2="${i*25}" y2="300"/>`).join("")}<line x1="0" y1="282" x2="1000" y2="282"/></g>
+    ${tree(130,260,38)}${tree(470,255,44)}${tree(640,262,34)}${tree(905,258,40)}
+    <!-- Schulhof zwischen den Häusern -->
+    <g fill="none" stroke="#ffffff" stroke-width="4"><rect x="466" y="440" width="22" height="22"/><rect x="488" y="440" width="22" height="22"/><rect x="510" y="418" width="22" height="22"/><rect x="510" y="462" width="22" height="22"/><rect x="510" y="440" width="22" height="22"/></g>
+    <circle class="ball" cx="485" cy="400" r="10" fill="#c8553d" stroke="#1f2b3b" stroke-width="2.5"/>
+    <rect x="236" y="330" width="7" height="90" fill="#56657a"/><rect x="218" y="322" width="44" height="26" fill="#ffffff" stroke="#1f2b3b" stroke-width="2.5"/><circle cx="240" cy="360" r="8" fill="none" stroke="#c8553d" stroke-width="3"/>
+    ${tree(755,400,30,"tree")}
+    <rect x="735" y="455" width="44" height="10" rx="3" fill="#8a6a43" stroke="#1f2b3b" stroke-width="2"/>
+    <!-- Häuser am Straßenrand -->
+    ${schoolSVG()}
+    <!-- Gehweg, Straße -->
+    <rect y="495" width="1000" height="18" fill="#c3cad3"/>
+    <rect y="513" width="1000" height="127" fill="#6b7380"/>
+    <path d="M0 580 H1000" stroke="#ffffff" stroke-width="5" stroke-dasharray="34 26"/>
+    <!-- Schild mit Logo -->
+    <rect x="228" y="440" width="6" height="66" fill="#56657a"/><rect x="252" y="440" width="6" height="66" fill="#56657a"/>
+    <rect x="212" y="372" width="62" height="84" rx="5" fill="#ffffff" stroke="#1f2b3b" stroke-width="3"/><image href="${LOGO}" x="221" y="377" width="44" height="62"/>
+    <rect x="226" y="441" width="34" height="10" rx="2" fill="#e4eaf1"/>
+    <!-- Haltestelle -->
+        <rect x="964" y="440" width="7" height="70" fill="#56657a"/><circle cx="967.5" cy="434" r="17" fill="#2c8a4a" stroke="#1f2b3b" stroke-width="2.5"/><text x="967.5" y="441" text-anchor="middle" font-family="Baloo 2, Trebuchet MS, sans-serif" font-weight="800" font-size="19" fill="#f2b632">H</text>
+    <g transform="translate(860 512) scale(-1 1)"><g class="bus">
+      <path d="M0 20 Q0 2 18 2 H258 Q296 2 300 40 V86 Q300 100 286 100 H14 Q0 100 0 86 Z" fill="#ffffff" stroke="#1f2b3b" stroke-width="3.5"/>
+      <g fill="#bfe3f5" stroke="#1f2b3b" stroke-width="2">
+        <rect x="12" y="14" width="26" height="36" rx="4"/><rect x="42" y="14" width="26" height="36" rx="4"/><rect x="72" y="14" width="26" height="36" rx="4"/><rect x="102" y="14" width="26" height="36" rx="4"/><rect x="132" y="14" width="26" height="36" rx="4"/><rect x="162" y="14" width="26" height="36" rx="4"/>
+        <rect x="196" y="14" width="13" height="74" rx="2"/><rect x="211" y="14" width="13" height="74" rx="2"/>
+        <path d="M232 14 H262 Q288 16 291 44 V60 H232 Z"/>
+      </g>
+      <path d="M12 26 L38 20 M42 26 L68 20 M72 26 L98 20 M102 26 L128 20 M132 26 L158 20 M162 26 L188 20" stroke="#ffffff" stroke-width="3" opacity=".7"/>
+      <rect x="2" y="64" width="46" height="7" fill="#ffd23f"/><rect x="48" y="64" width="46" height="7" fill="#e8483f"/><rect x="94" y="64" width="46" height="7" fill="#4a86f0"/><rect x="140" y="64" width="46" height="7" fill="#5cb85c"/>
+      <rect x="232" y="4" width="54" height="9" rx="2" fill="#1f2b3b"/>
+      <g transform="translate(518 0) scale(-1 1)"><text x="259" y="11.5" text-anchor="middle" font-family="Baloo 2, Trebuchet MS, sans-serif" font-weight="800" font-size="8" fill="#ffb53a">SCHULE</text></g>
+      <rect x="290" y="70" width="10" height="9" rx="3" fill="#ffe08a" stroke="#1f2b3b" stroke-width="1.5"/>
+      <rect x="0" y="70" width="6" height="10" rx="2" fill="#e8483f"/>
+      <path d="M38 100 a24 24 0 0 1 48 0 M214 100 a24 24 0 0 1 48 0" fill="#3a4350"/>
+      <circle cx="62" cy="102" r="18" fill="#1f2b3b"/><circle cx="238" cy="102" r="18" fill="#1f2b3b"/><circle cx="62" cy="102" r="7" fill="#cfd6de"/><circle cx="238" cy="102" r="7" fill="#cfd6de"/>
+    </g></g>
+  </svg>`;
+}
+
+/* ---------- Schule mit vier Häusern (grün, blau, rot, gelb) ---------- */
+function schoolSVG(){
+  const W=180, T=320, B=495;
+  const H=[{x:25,f:"#5cb85c",r:"#3d8a3d"},{x:281,f:"#4a86f0",r:"#2c5fc0"},{x:537,f:"#e8483f",r:"#a92b25"},{x:793,f:"#ffd23f",r:"#c2930f"}];
+  const win=(x,y)=>`<rect x="${x}" y="${y}" width="36" height="44" rx="3" fill="#bfe3f5" stroke="#1f2b3b" stroke-width="2.5"/><path d="M${x+18} ${y}v44M${x} ${y+22}h36" stroke="#1f2b3b" stroke-width="1.5"/>`;
+  const door=(x,w=34)=>`<rect x="${x}" y="${B-62}" width="${w}" height="62" rx="3" fill="#7a4b2c" stroke="#1f2b3b" stroke-width="2.5"/><circle cx="${x+w-8}" cy="${B-30}" r="3" fill="#f2b632"/>`;
+  const up=336, dn=424, c=[12,54,96,138];
+  let s="";
+  H.forEach(h=>{
+    s+=`<rect x="${h.x}" y="${T}" width="${W}" height="${B-T}" fill="${h.f}" stroke="#1f2b3b" stroke-width="3"/>`;
+    s+=`<rect x="${h.x-6}" y="${T-12}" width="${W+12}" height="14" rx="2" fill="${h.r}" stroke="#1f2b3b" stroke-width="3"/>`;
+    s+=`<line x1="${h.x}" y1="400" x2="${h.x+W}" y2="400" stroke="${h.r}" stroke-width="3"/>`;
+  });
+  const [g,bl,rd,ye]=H;
+  // grünes Haus: 1. Stock Sanitätsraum, unten Aula-Eingang
+  s+=win(g.x+c[0],up)+win(g.x+c[3],up);
+  s+=`<rect x="${g.x+54}" y="${up}" width="78" height="44" rx="3" fill="#ffffff" stroke="#1f2b3b" stroke-width="2.5"/><rect x="${g.x+81}" y="${up+10}" width="24" height="24" rx="3" fill="#2c8a4a"/><path d="M${g.x+90} ${up+14}h6v6h6v6h-6v6h-6v-6h-6v-6h6z" fill="#ffffff"/>`;
+  s+=win(g.x+c[0],dn)+win(g.x+c[3],dn);
+  s+=`<rect x="${g.x+52}" y="405" width="76" height="20" rx="4" fill="#ffffff" stroke="#1f2b3b" stroke-width="2.5"/><text x="${g.x+90}" y="420.5" text-anchor="middle" font-family="Baloo 2, Trebuchet MS, sans-serif" font-weight="800" font-size="15" fill="#1f2b3b">AULA</text>`;
+  s+=`<rect x="${g.x+58}" y="429" width="64" height="66" rx="4" fill="#7a4b2c" stroke="#1f2b3b" stroke-width="3"/><line x1="${g.x+90}" y1="429" x2="${g.x+90}" y2="${B}" stroke="#1f2b3b" stroke-width="2.5"/><circle cx="${g.x+84}" cy="463" r="3.5" fill="#f2b632"/><circle cx="${g.x+96}" cy="463" r="3.5" fill="#f2b632"/>`;
+  // blaues Haus: Klassenzimmer mit Tafel
+  s+=`<rect x="${bl.x+c[0]}" y="${up}" width="36" height="44" rx="3" fill="#2f5d50" stroke="#1f2b3b" stroke-width="2.5"/><path d="M${bl.x+17} ${up+12}h18M${bl.x+17} ${up+21}h24M${bl.x+17} ${up+30}h12" stroke="#f3f7f2" stroke-width="2.5" stroke-linecap="round"/>`;
+  s+=win(bl.x+c[1],up)+win(bl.x+c[2],up)+win(bl.x+c[3],up)+win(bl.x+c[0],dn)+win(bl.x+c[2],dn)+win(bl.x+c[3],dn)+door(bl.x+55);
+  // rotes Haus
+  s+=c.map(x=>win(rd.x+x,up)).join("")+win(rd.x+c[0],dn)+win(rd.x+c[1],dn)+win(rd.x+c[3],dn)+door(rd.x+97);
+  // gelbes Haus: Flur mit Garderobe (Jacken an Haken)
+  s+=c.map(x=>win(ye.x+x,up)).join("")+door(ye.x+138);
+  { const jc=["#e8483f","#4a86f0","#5cb85c","#f2b632","#8e6cc7"], t=dn+11;
+    s+=`<rect x="${ye.x+12}" y="${dn}" width="114" height="50" rx="3" fill="#eaf4fb" stroke="#1f2b3b" stroke-width="2.5"/><rect x="${ye.x+16}" y="${dn+5}" width="106" height="4" rx="2" fill="#8a6a43"/>`;
+    s+=jc.map((col,i)=>{const cx=ye.x+29+i*20;return `<path d="M${cx} ${dn+9} v3" stroke="#56657a" stroke-width="2"/><path d="M${cx-3} ${t} L${cx+3} ${t} L${cx+8} ${t+4} L${cx+8} ${t+30} L${cx-8} ${t+30} L${cx-8} ${t+4} Z" fill="${col}" stroke="#1f2b3b" stroke-width="1.6" stroke-linejoin="round"/><path d="M${cx} ${t+3} V${t+30}" stroke="#1f2b3b" stroke-width="1.2"/><path d="M${cx-8} ${t+6} l-3 16 h3 M${cx+8} ${t+6} l3 16 h-3" fill="${col}" stroke="#1f2b3b" stroke-width="1.4" stroke-linejoin="round"/>`}).join(""); }
+  return s;
+}
+
+const PINS = {bus:[71,84.6], hof:[49.9,57], klasse:[31.1,43.6], flur:[86.4,61], sani:[11.5,43.6], finale:[11.5,64]};
+
+function renderMap(){
+  const nx=nextStation();
+  const state=s=>S.done[s.id]?"done":(!unlocked(s)?"locked":(nx&&nx.id===s.id?"next":"open"));
+  const allDone=!!S.done.finale;
+  app.innerHTML = `${header()}
+  <div class="mapwrap">${mapSVG(false)}
+    ${ALL.map((s,i)=>{const st=state(s);const [x,y]=PINS[s.id];return `<button class="pin ${st} ${s.id==="finale"?"final":""}" style="left:${x}%;top:${y}%;--d:${(0.3+i*0.12).toFixed(2)}s" data-go="${s.id}" ${st==="locked"?'aria-disabled="true"':""} aria-label="${s.place}${st==="locked"?" (gesperrt)":st==="done"?" (geschafft)":""}">
+      <span class="dot">${st==="locked"?ICON.lock.replace('<svg','<svg width="24" height="24"'):st==="done"?"✓":(s.id==="finale"?ICON.star().replace('<svg','<svg width="30" height="30"'):s.nr)}</span><span class="lbl">${s.place}</span></button>`}).join("")}
+  </div>
+  <div class="guide">${PET}<p class="bubble" role="status">${guideText(nx,allDone)}</p></div>
+  <div class="stations">
+    ${ALL.map(s=>{const st=state(s);return `<button class="st ${st}" data-go="${s.id}" ${st==="locked"?'aria-disabled="true"':""}>
+      <span class="ic">${ICON[s.icon]}</span><span><b>${s.place}</b><small>${st==="done"?"geschafft":st==="locked"?(s.id==="finale"?"öffnet nach allen 5 Stationen":"noch gesperrt"):st==="next"?"jetzt dran":"offen"}</small></span></button>`}).join("")}
+  </div>
+  <div class="actions" style="justify-content:center">
+    ${allDone?`<button class="btn green" id="tocert">Urkunde ansehen</button>`:""}
+    <button class="link" id="home">Zum Startbildschirm</button>
+  </div>`;
+  app.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{
+    const s=ALL.find(x=>x.id===b.dataset.go); if(!unlocked(s)) return;
+    S.cur=s.id; S.view="station"; if(S.prog[s.id]==null) S.prog[s.id]=0; save(); render(); window.scrollTo(0,0);
+  }));
+  document.getElementById("home").addEventListener("click",()=>{S.view="start";save();render();});
+  const c=document.getElementById("tocert"); if(c) c.addEventListener("click",()=>{S.view="cert";save();render();window.scrollTo(0,0);});
+}
+
+function renderStation(){
+  const s=ALL.find(x=>x.id===S.cur); const p=S.prog[s.id]||0; const n=s.steps.length;
+  const pips=s.steps.map((st,i)=>`<i class="${i<p?(st.type==="info"?"on":"ok"):""}"></i>`).join("");
+  let html=`${header()}
+  <div class="stationhead"><button class="btn ghost" id="back">← Zur Karte</button><h2>${s.title}</h2><div class="pips" aria-label="Fortschritt ${Math.min(p,n)} von ${n}">${pips}</div></div>
+  <div class="scene">${ICON[s.icon]}<div><div class="time">${s.place.toUpperCase()} · ${s.time}</div><p>${s.scene}</p></div></div>
+  <div class="flow" id="flow">`;
+  for(let i=0;i<Math.min(p+1,n);i++) html+=stepHTML(s,s.steps[i],i,i===p);
+  if(p<n-1){ const left=n-1-p; html+=`<div class="locked-card">${ICON.lock}<span>Noch ${left} ${left===1?"Karte":"Karten"} gesperrt. ${s.steps[p].type==="info"?"Lies die Infokarte und tippe auf „Weiter“.":"Beantworte die Frage, um die nächste Karte freizuschalten."}</span></div>`; }
+  if(p>=n) html+=endHTML(s);
+  html+=`</div>`;
+  app.innerHTML=html;
+  bindStation(s);
+  applyFlash();
+}
+
+function stepHTML(s,st,i,isCur){
+  if(st.type==="info") return `<article class="card info" id="step${i}"><span class="tag">Infokarte</span><h3>${st.title}</h3>${st.html}
+    ${isCur?`<div class="actions"><button class="btn" data-next>Verstanden, weiter</button></div>`:""}</article>`;
+  if(st.type==="promise") return promiseHTML(st,isCur,i);
+  const solved=!isCur || tmp[st.id]?.solved;
+  if(st.type==="choice"){
+    const t=tmp[st.id]||{wrong:[]};
+    const isSolved=solved && (!isCur || t.solved);
+    return `<article class="card quiz" id="step${i}"><span class="tag">Quizfrage</span><p class="q">${st.q}</p>
+      <div class="opts">${ord(st).map((k,pos)=>{const o=st.options[k];
+        const cls= (isSolved&&o.ok)?"right":(t.wrong.includes(k)?"wrong":"");
+        return `<button class="opt ${cls}" data-opt="${k}" ${isSolved||t.wrong.includes(k)?"disabled":""}><span class="k">${"ABCD"[pos]}</span><span>${o.t}</span></button>`}).join("")}</div>
+      ${t.last!=null && !isSolved?`<div class="fb try" role="status"><b>Noch nicht ganz.</b>${st.options[t.last].fb||"Versuch es noch einmal."} Versuch es noch einmal!</div>`:""}
+      ${isSolved?`<div class="fb good" role="status"><b>${S.first[st.id]?"Richtig, beim ersten Versuch! +1 Mut-Stern":"Richtig!"}</b>${st.explain}</div>`:""}
+      ${isCur&&isSolved?`<div class="actions"><button class="btn" data-next>Weiter</button></div>`:""}
+    </article>`;
+  }
+  if(st.type==="sort"){
+    const t=tmp[st.id]||{sel:{},checked:false,res:{}};
+    const isSolved=!isCur || t.solved;
+    return `<article class="card quiz" id="step${i}"><span class="tag">Quizfrage · Zuordnen</span><p class="q">${st.q}</p>
+      <div class="sortlist">${ord(st).map(k=>{const it=st.items[k];
+        const sel=isSolved?it.c:t.sel[k]; const rc=isSolved?"right":(t.res[k]===true?"right":t.res[k]===false?"wrong":"");
+        return `<div class="sortrow ${rc}"><span>${it.t}</span><div class="cats" role="group" aria-label="Zuordnung">${st.cats.map((c,ci)=>`<button class="cat ${sel===ci?"sel":""}" data-item="${k}" data-cat="${ci}" ${isSolved||t.res[k]===true?"disabled":""} aria-pressed="${sel===ci}">${c}</button>`).join("")}</div></div>`}).join("")}</div>
+      ${!isSolved&&t.checked?`<div class="fb try" role="status"><b>Fast!</b>Die rot markierten Karten stimmen noch nicht. Ändere sie und prüfe noch einmal.</div>`:""}
+      ${isSolved?`<div class="fb good" role="status"><b>${S.first[st.id]?"Alles richtig, beim ersten Versuch! +1 Mut-Stern":"Alles richtig!"}</b>${st.explain}</div>`:""}
+      <div class="actions">${!isSolved?`<button class="btn green" data-check ${Object.keys(t.sel).length<st.items.length?"disabled":""}>Prüfen</button><small style="color:var(--muted)">${Object.keys(t.sel).length}/${st.items.length} zugeordnet</small>`:(isCur?`<button class="btn" data-next>Weiter</button>`:"")}</div>
+    </article>`;
+  }
+}
+
+function promiseHTML(st,isCur,i){
+  const chosen=S.promises;
+  return `<article class="card info" id="step${i}"><span class="tag">Zum Schluss</span><h3>${st.title}</h3>
+    <p>Welche Versprechen wollt ihr als Klasse geben? Kreuzt an, was ihr wirklich einhalten wollt.</p>
+    <div class="promise">${st.items.map((t,k)=>`<label for="pr${k}"><input type="checkbox" id="pr${k}" data-pr="${k}" ${chosen.includes(k)?"checked":""} ${isCur?"":"disabled"}><span>${t}</span></label>`).join("")}</div>
+    ${isCur?`<div class="actions"><button class="btn green" data-promise ${chosen.length?"":"disabled"}>Versprechen abgeben</button></div>`:""}
+  </article>`;
+}
+
+function endHTML(s){
+  const qs=s.steps.filter(x=>x.type==="choice"||x.type==="sort");
+  const got=qs.filter(q=>S.first[q.id]).length;
+  const isFinal=s.id==="finale";
+  return `<article class="card end" id="endcard"><div class="badge" aria-hidden="true">${ICON[s.icon]}</div><span class="tag">${isFinal?"Tour geschafft":"Station geschafft"}</span>
+    <h3>${isFinal?"Toll gemacht! Jonas und Elif sind nicht mehr allein.":`Super, du hast ${s.id==="klasse"?"das":"den"} ${s.place} geschafft!`}</h3>
+    <p>Mut-Sterne an dieser Station: <b>${got} von ${qs.length}</b></p>
+    <div class="talk"><b>Sprecht darüber</b><p>${s.talk}</p></div>
+    <div class="actions">${isFinal?`<button class="btn green" id="tocert">Zur Urkunde</button>`:`<button class="btn" id="tomap">Zurück zum Schulgelände</button>`}</div>
+  </article>`;
+}
+
+function advance(s){
+  S.prog[s.id]=(S.prog[s.id]||0)+1;
+  if(S.prog[s.id]>=s.steps.length) S.done[s.id]=true;
+  save(); renderStation();
+  const id=S.prog[s.id]>=s.steps.length?"endcard":"step"+S.prog[s.id];
+  const el=document.getElementById(id);
+  if(el){
+    el.classList.add("new");
+    el.scrollIntoView({behavior:RM?"auto":"smooth",block:"center"});
+    if(id==="endcard") setTimeout(()=>confetti(innerWidth/2,innerHeight*0.35,150,1.4),350);
+  }
+}
+
+function bindStation(s){
+  document.getElementById("back").addEventListener("click",()=>{S.view="map";save();render();window.scrollTo(0,0);});
+  const p=S.prog[s.id]||0; const st=s.steps[p];
+  app.querySelectorAll("[data-next]").forEach(b=>b.addEventListener("click",()=>advance(s)));
+  if(st && st.type==="choice"){
+    app.querySelectorAll(`#step${p} [data-opt]`).forEach(b=>b.addEventListener("click",()=>{
+      const k=+b.dataset.opt; const t=tmp[st.id]||(tmp[st.id]={wrong:[]});
+      if(st.options[k].ok){ t.solved=true; if(S.first[st.id]==null) S.first[st.id]=t.wrong.length===0; flash={kind:"good",step:p,star:S.first[st.id]===true&&t.wrong.length===0}; }
+      else { t.wrong.push(k); t.last=k; if(S.first[st.id]==null) S.first[st.id]=false; flash={kind:"bad",step:p,opt:k}; }
+      save(); renderStation(); document.getElementById("step"+p)?.scrollIntoView({block:"nearest"});
+    }));
+  }
+  if(st && st.type==="sort"){
+    app.querySelectorAll(`#step${p} [data-item]`).forEach(b=>b.addEventListener("click",()=>{
+      const t=tmp[st.id]||(tmp[st.id]={sel:{},checked:false,res:{}});
+      const k=+b.dataset.item; t.sel[k]=+b.dataset.cat; if(t.res[k]===false) delete t.res[k];
+      renderStation(); document.getElementById("step"+p)?.scrollIntoView({block:"nearest"});
+    }));
+    const c=app.querySelector(`#step${p} [data-check]`);
+    if(c) c.addEventListener("click",()=>{
+      const t=tmp[st.id]; t.checked=true; let all=true;
+      st.items.forEach((it,k)=>{const ok=t.sel[k]===it.c; t.res[k]=ok; if(!ok) all=false;});
+      const firstCheck=S.first[st.id]==null;
+      if(firstCheck) S.first[st.id]=all;
+      if(all){ t.solved=true; flash={kind:"good",step:p,star:firstCheck}; }
+      else flash={kind:"bad",step:p};
+      save(); renderStation(); document.getElementById("step"+p)?.scrollIntoView({block:"nearest"});
+    });
+  }
+  if(st && st.type==="promise"){
+    app.querySelectorAll("[data-pr]").forEach(cb=>cb.addEventListener("change",()=>{
+      const k=+cb.dataset.pr; S.promises=S.promises.filter(x=>x!==k); if(cb.checked) S.promises.push(k); S.promises.sort();
+      save(); const btn=app.querySelector("[data-promise]"); if(btn) btn.disabled=!S.promises.length;
+    }));
+    app.querySelector("[data-promise]")?.addEventListener("click",()=>advance(s));
+  }
+  document.getElementById("tomap")?.addEventListener("click",()=>{S.view="map";save();render();window.scrollTo(0,0);});
+  document.getElementById("tocert")?.addEventListener("click",()=>{S.view="cert";save();render();window.scrollTo(0,0);});
+}
+
+function renderCert(){
+  const d=new Date().toLocaleDateString("de-DE",{day:"numeric",month:"long",year:"numeric"});
+  const prom=FINALE.steps.find(x=>x.type==="promise").items;
+  const n=stars();
+  app.innerHTML=`${header()}
+  <section class="cert">
+    <img class="certlogo" src="${LOGO}" alt="Logo MPS St. Blasius Dornburg">
+    <span class="eyebrow">Urkunde</span>
+    <h2>Mut-Profi gegen Mobbing</h2>
+    <div class="who">${esc(S.name||"Unsere Klasse")}</div>
+    <p>hat an der MPS St. Blasius die Mut-Tour durch Schulbus, Schulhof, Klassenzimmer, Sanitätsraum und Schulflur geschafft und weiß, was gegen Mobbing hilft.</p>
+    <div class="stars" aria-label="${n} von ${QIDS.length} Mut-Sternen">${QIDS.map((_,i)=>`<span style="--i:${i}">${ICON.star(i<n?"#f2b632":"#e4eaf1")}</span>`).join("")}</div>
+    <p><b>${n} von ${QIDS.length} Mut-Sternen</b></p>
+    ${S.promises.length?`<div><p><b>Unser Versprechen:</b></p><ul>${S.promises.map(k=>`<li>${prom[k]}</li>`).join("")}</ul></div>`:""}
+    <p><b>Hilfe holen ist kein Petzen!</b> Nummer gegen Kummer: <b>116 111</b></p>
+    <small>${d}</small>
+  </section>
+  <div class="actions" style="justify-content:center">
+    <button class="btn green" id="dlpdf">Urkunde als PDF herunterladen</button>
+    <button class="btn ghost" id="dlpng">Als Bild (PNG)</button>
+  </div>
+  <p class="hint" id="dlmsg" role="status"></p>
+  <div class="actions" style="justify-content:center">
+    <button class="btn ghost" id="tomap">Zurück zur Karte</button>
+    <button class="link" id="again">Neue Runde starten</button>
+  </div>`;
+  document.getElementById("tomap").addEventListener("click",()=>{S.view="map";save();render();window.scrollTo(0,0);});
+  setTimeout(()=>{confetti(innerWidth*.25,innerHeight*.3,100,1.3);confetti(innerWidth*.75,innerHeight*.3,100,1.3);},300);
+  document.getElementById("dlpdf").addEventListener("click",e=>downloadCert("pdf",e.currentTarget));
+  document.getElementById("dlpng").addEventListener("click",e=>downloadCert("png",e.currentTarget));
+  const a=document.getElementById("again");
+  a.addEventListener("click",()=>{ if(a.dataset.sure){S=fresh();tmp={};save();render();window.scrollTo(0,0);} else {a.dataset.sure="1";a.textContent="Wirklich? Spielstand löschen";} });
+}
+
+
+/* ---------- Urkunde als Datei ---------- */
+async function drawCert(){
+  const W=2000,Hh=1414,k=1.24;
+  const cv=document.createElement("canvas"); cv.width=Math.round(W*k); cv.height=Math.round(Hh*k);
+  const c=cv.getContext("2d"); c.scale(k,k);
+  try{ await document.fonts.ready; }catch(e){}
+  const D='"Baloo 2","Trebuchet MS",Arial,sans-serif', B='Andika,Verdana,Arial,sans-serif';
+  c.fillStyle="#ffffff"; c.fillRect(0,0,W,Hh);
+  c.strokeStyle="#2f5d50"; c.lineWidth=14; c.strokeRect(40,40,W-80,Hh-80); c.lineWidth=5; c.strokeRect(70,70,W-140,Hh-140);
+  // Farbstreifen der vier Häuser
+  ["#5cb85c","#4a86f0","#e8483f","#ffd23f"].forEach((col,i)=>{c.fillStyle=col;c.fillRect(70+i*(W-140)/4,Hh-100,(W-140)/4,30);});
+  const img=new Image(); img.src=LOGO; try{ await img.decode(); c.drawImage(img,W/2-80,105,160,160*img.height/img.width); }catch(e){}
+  c.textAlign="center"; c.textBaseline="alphabetic";
+  c.fillStyle="#c8553d"; c.font=`800 40px ${D}`; c.fillText("U R K U N D E",W/2,400);
+  c.fillStyle="#1f2b3b"; c.font=`800 104px ${D}`; c.fillText("Mut-Profi gegen Mobbing",W/2,510);
+  const who=S.name||"Unsere Klasse"; c.font=`800 76px ${D}`; c.fillText(who,W/2,630);
+  const ww=Math.max(520,c.measureText(who).width+80); c.fillStyle="#f2b632"; c.fillRect(W/2-ww/2,650,ww,8);
+  c.fillStyle="#1f2b3b"; c.font=`400 36px ${B}`;
+  c.fillText("hat an der MPS St. Blasius die Mut-Tour durch Schulbus, Schulhof, Klassenzimmer,",W/2,730);
+  c.fillText("Sanitätsraum und Schulflur geschafft und weiß, was gegen Mobbing hilft.",W/2,780);
+  const n=stars(), tot=QIDS.length, sz=34, gap=10, rowW=tot*(sz*2)+(tot-1)*gap; let x=W/2-rowW/2+sz;
+  for(let i=0;i<tot;i++){ starPath(c,x,850,sz,sz*0.45); c.fillStyle=i<n?"#f2b632":"#e4eaf1"; c.fill(); c.lineWidth=3; c.strokeStyle="#1f2b3b"; c.stroke(); x+=sz*2+gap; }
+  c.fillStyle="#1f2b3b"; c.font=`700 34px ${B}`; c.fillText(`${n} von ${tot} Mut-Sternen`,W/2,935);
+  const prom=FINALE.steps.find(x=>x.type==="promise").items;
+  let y=1000;
+  if(S.promises.length){
+    c.font=`700 32px ${B}`; c.fillText("Unser Versprechen:",W/2,y); y+=46;
+    c.font=`400 29px ${B}`;
+    S.promises.forEach(i=>{ c.fillText("• "+prom[i],W/2,y); y+=40; });
+  }
+  c.font=`700 30px ${B}`; c.fillText("Hilfe holen ist kein Petzen!  Nummer gegen Kummer: 116 111",W/2,Hh-160);
+  c.textAlign="left"; c.font=`400 28px ${B}`; c.fillStyle="#56657a";
+  const d=new Date().toLocaleDateString("de-DE",{day:"numeric",month:"long",year:"numeric"});
+  c.fillText("Datum: "+d,130,Hh-210);
+  c.strokeStyle="#56657a"; c.lineWidth=2; c.beginPath(); c.moveTo(W-560,Hh-235); c.lineTo(W-130,Hh-235); c.stroke();
+  c.textAlign="center"; c.fillText("Unterschrift Lehrkraft",W-345,Hh-200);
+  return cv;
+}
+function starPath(c,cx,cy,R,r){ c.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?r:R; c.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr); } c.closePath(); }
+function canvasBlob(cv,type,q){ return new Promise(res=>cv.toBlob(res,type,q)); }
+function pdfFromJpeg(jpg,w,h){
+  const enc=new TextEncoder(), parts=[], offs=[]; let len=0;
+  const push=x=>{const b=typeof x==="string"?enc.encode(x):x; parts.push(b); len+=b.length;};
+  const obj=(n,f)=>{offs[n]=len; push(n+" 0 obj\n"); f(); push("\nendobj\n");};
+  push("%PDF-1.4\n");
+  obj(1,()=>push("<< /Type /Catalog /Pages 2 0 R >>"));
+  obj(2,()=>push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"));
+  obj(3,()=>push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>"));
+  const cs="q 842 0 0 595 0 0 cm /Im0 Do Q";
+  obj(4,()=>push(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+  obj(5,()=>{push(`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); push(jpg); push("\nendstream");});
+  const xref=len; let t="xref\n0 6\n0000000000 65535 f \n";
+  for(let i=1;i<=5;i++) t+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+  push(t+"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF\n");
+  return new Blob(parts,{type:"application/pdf"});
+}
+async function offerFile(blob,filename){
+  const msg=document.getElementById("dlmsg");
+  let dl=null;
+  if(window.claude&&typeof window.claude.use==="function"){ try{ dl=await window.claude.use("downloads"); }catch(e){ dl=null; } }
+  if(dl){
+    try{ await dl.save({filename,data:blob}); if(msg) msg.textContent="Gespeichert: "+filename; }
+    catch(e){ if(msg) msg.textContent=(e&&e.code==="declined")?"Download abgebrochen.":(e&&e.code==="rate_limited")?"Bitte einen Moment warten und noch einmal tippen.":"Der Download ist in dieser Ansicht leider nicht möglich."; }
+    return;
+  }
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  if(isIOS&&navigator.canShare){
+    try{
+      const f=new File([blob],filename,{type:blob.type});
+      if(navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:filename}); if(msg) msg.textContent="Urkunde zum Sichern geöffnet: "+filename; return; }
+    }catch(e){ if(e&&e.name==="AbortError"){ if(msg) msg.textContent="Download abgebrochen."; return; } }
+  }
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  if(msg) msg.textContent="Download gestartet: "+filename;
+}
+async function downloadCert(kind,btn){
+  const msg=document.getElementById("dlmsg"); btn.disabled=true; const old=btn.textContent; btn.textContent="Wird erstellt …";
+  try{
+    const cv=await drawCert();
+    const base="Urkunde_Mut-Tour_"+((S.name||"Klasse").replace(/[^\wäöüÄÖÜß -]/g,"").trim().replace(/\s+/g,"_")||"Klasse");
+    if(kind==="png"){ await offerFile(await canvasBlob(cv,"image/png"),base+".png"); }
+    else { const jb=await canvasBlob(cv,"image/jpeg",0.92); const jpg=new Uint8Array(await jb.arrayBuffer()); await offerFile(pdfFromJpeg(jpg,cv.width,cv.height),base+".pdf"); }
+  }catch(e){ if(msg) msg.textContent="Die Urkunde konnte nicht erstellt werden."; }
+  btn.disabled=false; btn.textContent=old;
+}
+
+/* ---------- Zufällige Reihenfolge der Antworten ---------- */
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function sortScore(st,o){
+  const c=o.map(k=>st.items[k].c), n=c.length, cats=new Set(c).size;
+  let sc=0;
+  for(let i=2;i<n;i++) if(c[i]===c[i-1]&&c[i]===c[i-2]) sc+=10;          // keine 3 gleichen hintereinander
+  if(n>3 && cats>1){ let per=true; for(let i=cats;i<n;i++) if(c[i]!==c[i-cats]) per=false; if(per) sc+=8; } // kein ABAB / ABCABC
+  if(o.every((k,i)=>k===i)) sc+=8;                                          // nicht die Originalreihenfolge
+  return sc;
+}
+function buildOrders(){
+  S.order=S.order||{};
+  let prev=-1;
+  ALL.forEach(s=>s.steps.forEach(st=>{
+    if(st.type==="choice"){
+      const n=st.options.length, ci=st.options.findIndex(o=>o.ok), idn=[...Array(n).keys()];
+      let o=S.order[st.id];
+      if(!o||o.length!==n){
+        if(st.fixed) o=idn;
+        else for(let t=0;t<100;t++){ o=shuffle(idn); if(o.indexOf(ci)!==prev) break; }
+        S.order[st.id]=o;
+      }
+      prev=o.indexOf(ci);
+    } else if(st.type==="sort" && (!S.order[st.id]||S.order[st.id].length!==st.items.length)){
+      const idn=[...Array(st.items.length).keys()]; let best=idn,bs=1e9;
+      for(let t=0;t<400;t++){ const o=shuffle(idn), sc=sortScore(st,o); if(sc<bs){best=o;bs=sc;} if(sc===0) break; }
+      S.order[st.id]=best;
+    }
+  }));
+  save();
+}
+function ord(st){ if(!S.order||!S.order[st.id]) buildOrders(); return S.order[st.id]; }
+
+/* ---------- Effekte ---------- */
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let flash=null;
+function applyFlash(){
+  if(!flash) return; const f=flash; flash=null;
+  const step=document.getElementById("step"+f.step); if(!step) return;
+  step.querySelectorAll(".fb").forEach(e=>e.classList.add("new"));
+  if(f.kind==="good"){
+    const src=step.querySelector(".opt.right")||step.querySelector(".fb.good")||step;
+    const r=src.getBoundingClientRect(); confetti(r.left+r.width/2,r.top+r.height/2,f.star?70:40);
+    if(f.star) setTimeout(()=>flyStar(src),150);
+  } else {
+    if(f.opt!=null) step.querySelector(`[data-opt="${f.opt}"]`)?.classList.add("shake");
+    step.querySelectorAll(".sortrow.wrong").forEach(e=>e.classList.add("shake"));
+  }
+}
+let cv,ctx,parts=[],raf=0;
+function confetti(x,y,n=60,spread=1){
+  if(RM) return;
+  if(!cv){cv=document.createElement("canvas");cv.setAttribute("aria-hidden","true");cv.style.cssText="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50";document.body.appendChild(cv);ctx=cv.getContext("2d");}
+  const dpr=window.devicePixelRatio||1; cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  const cols=["#f2b632","#2f5d50","#c8553d","#7fb2d9","#23845a","#e59a7c"];
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=(3+Math.random()*6)*spread;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-4*spread,r:5+Math.random()*5,rot:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[i%cols.length],life:0,round:Math.random()<.3});}
+  if(!raf) raf=requestAnimationFrame(tick);
+}
+function tick(){
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  parts=parts.filter(p=>p.life<110&&p.y<innerHeight+40);
+  for(const p of parts){
+    p.life++;p.vy+=.22;p.vx*=.985;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;
+    ctx.save();ctx.globalAlpha=Math.max(0,1-p.life/110);ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.c;
+    if(p.round){ctx.beginPath();ctx.arc(0,0,p.r*.55,0,7);ctx.fill();} else ctx.fillRect(-p.r/2,-p.r/4,p.r,p.r/2);
+    ctx.restore();
+  }
+  raf=parts.length?requestAnimationFrame(tick):0;
+}
+function flyStar(src){
+  if(RM) return; const chip=document.getElementById("starchip"); if(!chip) return;
+  const a=src.getBoundingClientRect(), b=chip.getBoundingClientRect();
+  const sx=a.left+a.width/2, sy=a.top+a.height/2;
+  const el=document.createElement("div"); el.innerHTML=ICON.star(); el.firstChild.style.cssText="width:100%;height:100%;display:block";
+  el.style.cssText=`position:fixed;left:${sx-22}px;top:${sy-22}px;width:44px;height:44px;z-index:60;pointer-events:none`;
+  document.body.appendChild(el);
+  const dx=b.left+20-sx, dy=b.top+b.height/2-sy;
+  el.animate([{transform:"translate(0,0) scale(.6) rotate(0deg)"},{transform:`translate(${dx*.4}px,${dy*.4-90}px) scale(1.7) rotate(180deg)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.45) rotate(360deg)`}],{duration:1000,easing:"ease-in-out"}).onfinish=()=>{el.remove();chip.classList.remove("pulse");void chip.offsetWidth;chip.classList.add("pulse");};
+}
+
+/* ---------- Erdmännchen Emil ---------- */
+const PET=`<svg class="pet" viewBox="0 0 80 100" aria-hidden="true">
+  <path d="M54 90 q20 -2 17 -26" fill="none" stroke="#1f2b3b" stroke-width="9" stroke-linecap="round"/>
+  <path d="M54 90 q20 -2 17 -26" fill="none" stroke="#c9a26b" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="71" cy="63" r="3.2" fill="#5a4026"/>
+  <ellipse cx="32" cy="93" rx="8" ry="4" fill="#b48c55" stroke="#1f2b3b" stroke-width="2"/><ellipse cx="48" cy="93" rx="8" ry="4" fill="#b48c55" stroke="#1f2b3b" stroke-width="2"/>
+  <ellipse cx="40" cy="66" rx="18" ry="27" fill="#c9a26b" stroke="#1f2b3b" stroke-width="2.5"/>
+  <ellipse cx="40" cy="70" rx="11" ry="19" fill="#ead7b2"/>
+  <path d="M27 45 q13 7 26 0 l-2 6 q-11 5 -22 0 z" fill="#e8483f" stroke="#1f2b3b" stroke-width="1.8" stroke-linejoin="round"/>
+  <ellipse cx="34" cy="55" rx="4.5" ry="3.5" fill="#b48c55" stroke="#1f2b3b" stroke-width="1.8"/><ellipse cx="46" cy="55" rx="4.5" ry="3.5" fill="#b48c55" stroke="#1f2b3b" stroke-width="1.8"/>
+  <circle cx="27" cy="19" r="4.5" fill="#8a6a43" stroke="#1f2b3b" stroke-width="2"/><circle cx="53" cy="19" r="4.5" fill="#8a6a43" stroke="#1f2b3b" stroke-width="2"/>
+  <ellipse cx="40" cy="27" rx="15" ry="16" fill="#c9a26b" stroke="#1f2b3b" stroke-width="2.5"/>
+  <ellipse cx="33" cy="26" rx="5" ry="6" fill="#5a4026" transform="rotate(15 33 26)"/><ellipse cx="47" cy="26" rx="5" ry="6" fill="#5a4026" transform="rotate(-15 47 26)"/>
+  <g class="eyes"><circle cx="33.5" cy="26" r="3" fill="#1f2b3b"/><circle cx="46.5" cy="26" r="3" fill="#1f2b3b"/><circle cx="34.5" cy="25" r="1.1" fill="#fff"/><circle cx="47.5" cy="25" r="1.1" fill="#fff"/></g>
+  <ellipse cx="40" cy="36" rx="7.5" ry="6" fill="#e2c79a"/>
+  <ellipse cx="40" cy="33.5" rx="3" ry="2.2" fill="#1f2b3b"/>
+  <path d="M37 37.5 q3 2.5 6 0" fill="none" stroke="#1f2b3b" stroke-width="1.6" stroke-linecap="round"/>
+</svg>`;
+function guideText(nx,allDone){
+  const d=STATIONS.filter(s=>S.done[s.id]).length;
+  if(allDone) return "Wow, du hast die ganze Mut-Tour geschafft! Hol dir deine <b>Urkunde</b> ab.";
+  if(nx&&nx.id==="finale") return "Alle fünf Stationen geschafft! Jetzt ist die <b>Aula</b> offen. Dort findest du heraus, was wirklich hilft.";
+  if(d===0) return `Hallo${S.name?" "+esc(S.name):""}! Ich bin Erdmännchen Emil und führe dich durch die Tour. Starte im <b>Schulbus</b>!`;
+  const cheer=["Stark","Super","Klasse","Toll"][d%4];
+  return `${cheer}, schon ${d} von ${STATIONS.length} Stationen geschafft! Weiter geht’s: <b>${nx?nx.place:""}</b>.`;
+}
+
+/* Spielstand bleibt bei Updates erhalten */
+function start(data){ if(data&&data.S){S=data.S;tmp=data.tmp||{};} S.promises=(S.promises||[]).filter(k=>k<3); render(); }
+window.claude?.hot?.snapshot?.(()=>({S,tmp}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+<script>
+if("serviceWorker" in navigator && (location.protocol==="https:"||location.hostname==="localhost")){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
